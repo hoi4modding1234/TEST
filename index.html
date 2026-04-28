@@ -1802,11 +1802,8 @@
       url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='250' height='250'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.10 0'/></filter><rect width='250' height='250' filter='url(%23f)'/></svg>");
     mix-blend-mode: multiply;
     opacity: 0.6;
-    z-index: 1;
+    z-index: 0;
   }
-  .envelope > *, .stage-envelope > * { position: relative; z-index: 2; }
-  .envelope .envelope-texture-overlay,
-  .stage-envelope .envelope-texture-overlay { z-index: 1; }
 
   /* config warning banner */
   .config-warning {
@@ -2181,8 +2178,9 @@
 //  CONFIG — 본인 Supabase 프로젝트 값으로 교체하세요
 // ═══════════════════════════════════════════════════════════
 const SUPABASE_URL      = 'https://dgikzwzaetqmwltiiaxy.supabase.co';
-
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnaWt6d3phZXRxbXdsdGlpYXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyODczNzAsImV4cCI6MjA5Mjg2MzM3MH0.LsLQFCL6vjV9WPQt4RgXtcWRbQ_WXhfmT8nYEnS4qvk';
+
+
 
 // ═══════════════════════════════════════════════════════════
 //  SETUP
