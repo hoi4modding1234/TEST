@@ -2172,7 +2172,7 @@
   letter-spacing: 0.05em;
   text-align: center;
   white-space: nowrap;
-  color: var(--postmark);
+  color: inherit;  /* 도시·거리(SVG textPath와 currentColor)와 같은 색을 따라감 */
 }
 .stage-envelope .env-postmark .pm-center {
   font-size: 0.85rem;
@@ -2323,10 +2323,19 @@
 }
 .seal-modal.show { display: flex; }
 
+.seal-modal-inner {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+}
+
 .seal-stage {
   position: relative;
   width: 100%;
-  max-width: 520px;
+  aspect-ratio: 5/3;
   perspective: 1200px;
 }
 
@@ -2475,20 +2484,16 @@
 
 /* 확인 패널 — 봉인 후 등장 */
 .seal-confirm {
-  margin-top: 28px;
   text-align: center;
   color: var(--paper);
   opacity: 0;
   transform: translateY(12px);
   transition: opacity 0.5s 0.4s, transform 0.5s 0.4s;
-  /* 어떤 봉투 색이든 텍스트가 항상 읽히도록 자체 배경을 가짐 */
-  background: rgba(20, 16, 10, 0.85);
+  background: rgba(20, 16, 10, 0.88);
   backdrop-filter: blur(4px);
-  border: 1px solid rgba(243, 232, 208, 0.25);
+  border: 1px solid rgba(243, 232, 208, 0.3);
   padding: 22px 24px;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
-  position: relative;
-  z-index: 10;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
 }
 .seal-confirm.show { opacity: 1; transform: translateY(0); }
 .seal-confirm .sc-q {
