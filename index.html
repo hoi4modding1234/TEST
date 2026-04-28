@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Nanum+Pen+Script&family=Gaegu:wght@300;400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <style>
   :root {
     --paper:        #f3e8d0;
@@ -26,6 +27,26 @@
     --stamp-blue:   #2a4d6e;
     --stamp-green:  #4a6e3a;
     --shadow:       rgba(45, 36, 25, 0.18);
+
+    /* Seal colors */
+    --seal-crimson:  #8b1e1e;
+    --seal-crimson-l:#b03030;
+    --seal-crimson-d:#5a0d0d;
+    --seal-navy:     #2a4d6e;
+    --seal-navy-l:   #4070a0;
+    --seal-navy-d:   #142840;
+    --seal-forest:   #3d5d3a;
+    --seal-forest-l: #6b8a64;
+    --seal-forest-d: #1f3220;
+    --seal-gold:     #a08540;
+    --seal-gold-l:   #d4b870;
+    --seal-gold-d:   #6e5520;
+    --seal-charcoal: #2d2419;
+    --seal-charcoal-l:#5a4a35;
+    --seal-charcoal-d:#15100a;
+    --seal-plum:     #6b3a5e;
+    --seal-plum-l:   #9a5d8a;
+    --seal-plum-d:   #401f37;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1284,6 +1305,509 @@
     border-color: var(--ink);
   }
 
+  /* ─────────── SEAL COLOR VARIANTS ─────────── */
+  .seal-crimson  { --sc: var(--seal-crimson);  --scl: var(--seal-crimson-l);  --scd: var(--seal-crimson-d);  }
+  .seal-navy     { --sc: var(--seal-navy);     --scl: var(--seal-navy-l);     --scd: var(--seal-navy-d);     }
+  .seal-forest   { --sc: var(--seal-forest);   --scl: var(--seal-forest-l);   --scd: var(--seal-forest-d);   }
+  .seal-gold     { --sc: var(--seal-gold);     --scl: var(--seal-gold-l);     --scd: var(--seal-gold-d);     }
+  .seal-charcoal { --sc: var(--seal-charcoal); --scl: var(--seal-charcoal-l); --scd: var(--seal-charcoal-d); }
+  .seal-plum     { --sc: var(--seal-plum);     --scl: var(--seal-plum-l);     --scd: var(--seal-plum-d);     }
+
+  /* Override .env-seal and .stage-seal to honor seal color variant on parent */
+  .envelope .env-seal {
+    background: radial-gradient(circle at 35% 35%, var(--scl, var(--wax-light)) 0%, var(--sc, var(--wax)) 50%, var(--scd, var(--wax-deep)) 100%);
+  }
+  .envelope .env-seal::before {
+    background: radial-gradient(circle at 40% 30%, var(--sc, var(--wax)) 0%, var(--sc, var(--wax)) 40%, transparent 70%);
+  }
+  .stage-envelope .stage-seal {
+    background: radial-gradient(circle at 35% 35%, var(--scl, var(--wax-light)) 0%, var(--sc, var(--wax)) 50%, var(--scd, var(--wax-deep)) 100%);
+  }
+
+  /* ─────────── ENVELOPE STYLE VARIANTS ─────────── */
+  /* Each variant overrides the envelope's body and flap colors */
+  .env-cream .envelope-body { background: linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%); }
+  .env-cream .envelope-flap { background: linear-gradient(180deg, #d9c69e 0%, #c8b384 100%); }
+  .env-kraft .envelope-body { background: linear-gradient(135deg, #c89c6e 0%, #a87a48 100%); }
+  .env-kraft .envelope-flap { background: linear-gradient(180deg, #9c7040 0%, #7a5530 100%); }
+  .env-kraft .env-from, .env-kraft .lcp-from { color: #2d1f0f; }
+  .env-kraft .env-postmark { color: #1f1407; opacity: 0.7; border-color: #1f1407; }
+  .env-kraft .env-postmark::before, .env-kraft .env-postmark::after { background: #1f1407; }
+  .env-navy .envelope-body { background: linear-gradient(135deg, #3a5670 0%, #2a4255 100%); color: #e8e0c8; }
+  .env-navy .envelope-flap { background: linear-gradient(180deg, #243848 0%, #1a2a38 100%); }
+  .env-navy .env-from, .env-navy .env-from .lbl { color: #e8e0c8; }
+  .env-navy .env-postmark { color: #e8e0c8; opacity: 0.65; border-color: #e8e0c8; }
+  .env-navy .env-postmark::before, .env-navy .env-postmark::after { background: #e8e0c8; }
+  .env-sage .envelope-body { background: linear-gradient(135deg, #c8d4b8 0%, #a8b896 100%); }
+  .env-sage .envelope-flap { background: linear-gradient(180deg, #98a884 0%, #788c64 100%); }
+  .env-ivory .envelope-body { background: linear-gradient(135deg, #faf3e0 0%, #efe5c8 100%); }
+  .env-ivory .envelope-flap { background: linear-gradient(180deg, #e2d4a8 0%, #d0bf90 100%); }
+
+  /* The actual envelope body needs the variant tokens applied */
+  .envelope.styled::before { background: var(--flap-bg, linear-gradient(180deg, #d9c69e 0%, #c8b384 100%)); }
+  .envelope.styled { background: var(--body-bg, linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%)); }
+
+  /* Variant background painters via attribute selectors (cleaner) */
+  .envelope[data-env="cream"]    { background: linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%); }
+  .envelope[data-env="cream"]::before  { background: linear-gradient(180deg, #d9c69e 0%, #c8b384 100%); }
+  .envelope[data-env="kraft"]    { background: linear-gradient(135deg, #c89c6e 0%, #a87a48 100%); }
+  .envelope[data-env="kraft"]::before  { background: linear-gradient(180deg, #9c7040 0%, #7a5530 100%); }
+  .envelope[data-env="navy"]     { background: linear-gradient(135deg, #3a5670 0%, #2a4255 100%); color: #e8e0c8; }
+  .envelope[data-env="navy"]::before   { background: linear-gradient(180deg, #243848 0%, #1a2a38 100%); }
+  .envelope[data-env="navy"] .env-from { color: #e8e0c8; }
+  .envelope[data-env="navy"] .env-from .lbl { color: #c8b894; }
+  .envelope[data-env="navy"] .env-postmark { color: #d8cca8; border-color: #d8cca8; opacity: 0.5; }
+  .envelope[data-env="navy"] .env-postmark::before,
+  .envelope[data-env="navy"] .env-postmark::after { background: #d8cca8; }
+  .envelope[data-env="sage"]     { background: linear-gradient(135deg, #c8d4b8 0%, #a8b896 100%); }
+  .envelope[data-env="sage"]::before   { background: linear-gradient(180deg, #98a884 0%, #788c64 100%); }
+  .envelope[data-env="ivory"]    { background: linear-gradient(135deg, #faf3e0 0%, #efe5c8 100%); }
+  .envelope[data-env="ivory"]::before  { background: linear-gradient(180deg, #e2d4a8 0%, #d0bf90 100%); }
+
+  .stage-envelope[data-env="cream"]    { background: linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%); }
+  .stage-envelope[data-env="cream"]::before  { background: linear-gradient(180deg, #d9c69e 0%, #c8b384 100%); }
+  .stage-envelope[data-env="kraft"]    { background: linear-gradient(135deg, #c89c6e 0%, #a87a48 100%); }
+  .stage-envelope[data-env="kraft"]::before  { background: linear-gradient(180deg, #9c7040 0%, #7a5530 100%); }
+  .stage-envelope[data-env="navy"]     { background: linear-gradient(135deg, #3a5670 0%, #2a4255 100%); }
+  .stage-envelope[data-env="navy"]::before   { background: linear-gradient(180deg, #243848 0%, #1a2a38 100%); }
+  .stage-envelope[data-env="navy"] .stage-from-meta,
+  .stage-envelope[data-env="navy"] .stage-from-meta .lbl { color: #e8e0c8; }
+  .stage-envelope[data-env="navy"] .env-postmark { color: #d8cca8; border-color: #d8cca8; opacity: 0.5; }
+  .stage-envelope[data-env="navy"] .env-postmark::before,
+  .stage-envelope[data-env="navy"] .env-postmark::after { background: #d8cca8; }
+  .stage-envelope[data-env="sage"]     { background: linear-gradient(135deg, #c8d4b8 0%, #a8b896 100%); }
+  .stage-envelope[data-env="sage"]::before   { background: linear-gradient(180deg, #98a884 0%, #788c64 100%); }
+  .stage-envelope[data-env="ivory"]    { background: linear-gradient(135deg, #faf3e0 0%, #efe5c8 100%); }
+  .stage-envelope[data-env="ivory"]::before  { background: linear-gradient(180deg, #e2d4a8 0%, #d0bf90 100%); }
+
+  /* Subtle creases on envelopes — adds realism */
+  .envelope, .stage-envelope {
+    background-blend-mode: multiply;
+  }
+  .envelope::after, .stage-envelope::after {
+    /* keep existing decorative border on .envelope; on .stage-envelope add fold shadows */
+  }
+  .stage-envelope {
+    box-shadow:
+      0 30px 60px rgba(0,0,0,0.5),
+      inset 0 0 30px rgba(0,0,0,0.04),
+      inset 0 -2px 8px rgba(0,0,0,0.05);
+  }
+
+  /* ─────────── PAPER STYLE VARIANTS ─────────── */
+  /* The base .letter-content-paper sets cream + lines. Variants override. */
+  .lcp[data-paper="cream"] {
+    background-color: #f3e8d0;
+    background-image:
+      linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+  }
+  .lcp[data-paper="lined"] {
+    background-color: #f3e8d0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 30px, rgba(45, 90, 130, 0.18) 30px 31px),
+      linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+  }
+  .lcp[data-paper="grid"] {
+    background-color: #f3e8d0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 22px, rgba(45, 90, 130, 0.13) 22px 23px),
+      repeating-linear-gradient(90deg, transparent 0 22px, rgba(45, 90, 130, 0.13) 22px 23px),
+      linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+  }
+  .lcp[data-paper="aged"] {
+    background-color: #e8d6a8;
+    background-image:
+      radial-gradient(ellipse at 20% 30%, rgba(107, 66, 38, 0.18) 0%, transparent 30%),
+      radial-gradient(ellipse at 80% 70%, rgba(107, 66, 38, 0.16) 0%, transparent 35%),
+      radial-gradient(ellipse at 50% 90%, rgba(107, 66, 38, 0.12) 0%, transparent 25%),
+      linear-gradient(180deg, #ecdcb0 0%, #d8c590 100%);
+  }
+  .lcp[data-paper="aged"]::before { opacity: 0.6; }
+  .lcp[data-paper="ivory"] {
+    background-color: #faf3e0;
+    background-image:
+      linear-gradient(180deg, #fefaee 0%, #f4ecd0 100%);
+  }
+  .lcp[data-paper="ivory"]::before { opacity: 0.4; }
+
+  /* Mini paper preview swatch (used in compose picker) */
+  .paper-swatch {
+    width: 100%;
+    aspect-ratio: 5/7;
+    border: 1px solid var(--sepia-soft);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    background-color: #f3e8d0;
+  }
+  .paper-swatch[data-paper="cream"]  { background-image: linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%); }
+  .paper-swatch[data-paper="lined"]  { background-image:
+      repeating-linear-gradient(0deg, transparent 0 8px, rgba(45,90,130,0.25) 8px 9px),
+      linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%); }
+  .paper-swatch[data-paper="grid"]   { background-image:
+      repeating-linear-gradient(0deg, transparent 0 7px, rgba(45,90,130,0.2) 7px 8px),
+      repeating-linear-gradient(90deg, transparent 0 7px, rgba(45,90,130,0.2) 7px 8px),
+      linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%); }
+  .paper-swatch[data-paper="aged"]   {
+    background-color: #e8d6a8;
+    background-image:
+      radial-gradient(ellipse at 20% 30%, rgba(107, 66, 38, 0.3) 0%, transparent 35%),
+      radial-gradient(ellipse at 80% 70%, rgba(107, 66, 38, 0.25) 0%, transparent 35%),
+      linear-gradient(180deg, #ecdcb0 0%, #d8c590 100%); }
+  .paper-swatch[data-paper="ivory"]  { background-image: linear-gradient(180deg, #fefaee 0%, #f4ecd0 100%); }
+  .paper-swatch:hover { transform: translateY(-2px); }
+  .paper-swatch.active { box-shadow: 0 0 0 3px var(--wax); transform: translateY(-2px); }
+
+  /* Envelope swatch — small envelope shape */
+  .env-swatch {
+    width: 100%;
+    aspect-ratio: 5/3;
+    border: 1px solid var(--sepia-soft);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .env-swatch::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  .env-swatch[data-env="cream"]  { background: linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%); }
+  .env-swatch[data-env="cream"]::before  { background: linear-gradient(180deg, #d9c69e 0%, #c8b384 100%); }
+  .env-swatch[data-env="kraft"]  { background: linear-gradient(135deg, #c89c6e 0%, #a87a48 100%); }
+  .env-swatch[data-env="kraft"]::before  { background: linear-gradient(180deg, #9c7040 0%, #7a5530 100%); }
+  .env-swatch[data-env="navy"]   { background: linear-gradient(135deg, #3a5670 0%, #2a4255 100%); }
+  .env-swatch[data-env="navy"]::before   { background: linear-gradient(180deg, #243848 0%, #1a2a38 100%); }
+  .env-swatch[data-env="sage"]   { background: linear-gradient(135deg, #c8d4b8 0%, #a8b896 100%); }
+  .env-swatch[data-env="sage"]::before   { background: linear-gradient(180deg, #98a884 0%, #788c64 100%); }
+  .env-swatch[data-env="ivory"]  { background: linear-gradient(135deg, #faf3e0 0%, #efe5c8 100%); }
+  .env-swatch[data-env="ivory"]::before  { background: linear-gradient(180deg, #e2d4a8 0%, #d0bf90 100%); }
+  .env-swatch:hover { transform: translateY(-2px); }
+  .env-swatch.active { box-shadow: 0 0 0 3px var(--wax); transform: translateY(-2px); }
+
+  /* Seal color swatch */
+  .seal-swatch {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .seal-swatch[data-color="crimson"]  { background: radial-gradient(circle at 35% 35%, var(--seal-crimson-l) 0%, var(--seal-crimson) 50%, var(--seal-crimson-d) 100%); }
+  .seal-swatch[data-color="navy"]     { background: radial-gradient(circle at 35% 35%, var(--seal-navy-l) 0%, var(--seal-navy) 50%, var(--seal-navy-d) 100%); }
+  .seal-swatch[data-color="forest"]   { background: radial-gradient(circle at 35% 35%, var(--seal-forest-l) 0%, var(--seal-forest) 50%, var(--seal-forest-d) 100%); }
+  .seal-swatch[data-color="gold"]     { background: radial-gradient(circle at 35% 35%, var(--seal-gold-l) 0%, var(--seal-gold) 50%, var(--seal-gold-d) 100%); }
+  .seal-swatch[data-color="charcoal"] { background: radial-gradient(circle at 35% 35%, var(--seal-charcoal-l) 0%, var(--seal-charcoal) 50%, var(--seal-charcoal-d) 100%); }
+  .seal-swatch[data-color="plum"]     { background: radial-gradient(circle at 35% 35%, var(--seal-plum-l) 0%, var(--seal-plum) 50%, var(--seal-plum-d) 100%); }
+  .seal-swatch:hover { transform: scale(1.1); }
+  .seal-swatch.active { border-color: var(--ink); transform: scale(1.1); }
+
+  .symbol-swatch {
+    width: 38px; height: 38px;
+    border: 1px solid var(--sepia-soft);
+    background: rgba(255,255,255,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem;
+    color: var(--ink);
+    transition: all 0.2s;
+  }
+  .symbol-swatch:hover { background: var(--paper-deep); }
+  .symbol-swatch.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* ─────────── PROFILE EDIT MODAL ─────────── */
+  .profile-modal {
+    position: fixed; inset: 0;
+    z-index: 60;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(45, 36, 25, 0.55);
+    backdrop-filter: blur(4px);
+    overflow-y: auto;
+  }
+  .profile-modal.show { display: flex; animation: fadeIn 0.3s; }
+  .profile-card {
+    background: var(--paper);
+    width: 100%;
+    max-width: 580px;
+    padding: 40px 36px;
+    border: 1px solid var(--sepia);
+    box-shadow:
+      0 0 0 6px var(--paper),
+      0 0 0 7px var(--sepia),
+      0 30px 60px -10px rgba(45, 36, 25, 0.5);
+    position: relative;
+    margin: auto;
+  }
+  .profile-card h2 {
+    font-family: 'Gowun Batang', serif;
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+  }
+  .profile-card h2 em {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    color: var(--wax);
+    font-size: 0.7em;
+    font-weight: 500;
+  }
+  .profile-card .sub {
+    font-size: 0.85rem;
+    color: var(--sepia);
+    margin-bottom: 24px;
+  }
+  .profile-card .pmc-close {
+    position: absolute;
+    top: 14px; right: 18px;
+    background: transparent;
+    border: 1px solid var(--sepia-soft);
+    color: var(--sepia);
+    width: 32px; height: 32px;
+    cursor: pointer;
+    font-family: 'Cormorant Garamond', serif;
+  }
+  .pm-section {
+    margin-bottom: 24px;
+  }
+  .pm-section .lbl {
+    font-family: 'Gowun Batang', serif;
+    font-size: 0.85rem;
+    color: var(--sepia);
+    margin-bottom: 10px;
+    letter-spacing: 0.05em;
+  }
+  .pm-section .lbl::before { content: '— '; color: var(--gold-deep); }
+  .pm-section .lbl::after { content: ' —'; color: var(--gold-deep); }
+  .pm-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pm-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .pm-grid-paper {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .pm-bio {
+    width: 100%;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--sepia-soft);
+    padding: 10px 12px;
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    resize: vertical;
+    min-height: 70px;
+  }
+  .pm-bio:focus { outline: none; border-color: var(--wax); }
+  .pm-bio-count {
+    text-align: right;
+    font-size: 0.75rem;
+    color: var(--sepia);
+    margin-top: 4px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+  }
+
+  /* Profile preview — shows how my seal/envelope will look */
+  .profile-preview {
+    background: rgba(255,255,255,0.4);
+    border: 1px dashed var(--sepia-soft);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .pp-seal {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1.5rem;
+    color: rgba(255, 230, 200, 0.85);
+    font-weight: 600;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+  }
+  .pp-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .pp-info .pp-name {
+    font-family: 'Gowun Batang', serif;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 1.1rem;
+  }
+  .pp-info .pp-bio {
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 0.85rem;
+    color: var(--sepia);
+    line-height: 1.5;
+    margin-top: 2px;
+  }
+  .pp-info .pp-bio:empty::before {
+    content: '자기소개를 적어보세요';
+    font-style: italic;
+    opacity: 0.5;
+  }
+
+  /* Profile button in masthead */
+  .profile-btn {
+    background: transparent;
+    border: 1px solid var(--sepia-soft);
+    color: var(--sepia);
+    padding: 4px 10px;
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    margin-top: 6px;
+    margin-right: 4px;
+    transition: all 0.2s;
+  }
+  .profile-btn:hover {
+    background: var(--wax);
+    color: var(--paper);
+    border-color: var(--wax);
+  }
+
+  /* ─────────── COMPOSE: STYLE PICKERS + RICH EDITOR ─────────── */
+  .style-row {
+    padding: 14px 30px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .style-row .pm-section { margin-bottom: 8px; }
+
+  .editor-toolbar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 0 30px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .tb-btn {
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--sepia-soft);
+    color: var(--ink);
+    width: 34px; height: 34px;
+    font-family: 'Gowun Batang', serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tb-btn:hover { background: var(--paper-deep); }
+  .tb-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tb-btn.b { font-weight: 700; }
+  .tb-btn.i { font-style: italic; font-family: 'Cormorant Garamond', serif; }
+  .tb-btn.u { text-decoration: underline; }
+  .tb-divider {
+    width: 1px;
+    height: 22px;
+    background: var(--sepia-soft);
+    margin: 0 6px;
+  }
+  .tb-select {
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--sepia-soft);
+    color: var(--ink);
+    height: 34px;
+    padding: 0 8px;
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .tb-color {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .tb-color:hover { transform: scale(1.15); }
+  .tb-color.active { border-color: var(--ink); }
+  .tb-color[data-color="ink"]    { background: #1f2a44; }
+  .tb-color[data-color="sepia"]  { background: #6b4226; }
+  .tb-color[data-color="crimson"]{ background: #8b1e1e; }
+  .tb-color[data-color="forest"] { background: #3d5d3a; }
+
+  .rich-editor {
+    min-height: 220px;
+    background: transparent;
+    width: 100%;
+    font-family: var(--editor-font, 'Nanum Pen Script', cursive);
+    font-size: 1.4rem;
+    color: var(--ink);
+    line-height: 32px;
+    padding: 0;
+    border: none;
+    outline: none;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+  .rich-editor:empty::before {
+    content: attr(data-placeholder);
+    color: var(--sepia);
+    opacity: 0.5;
+    font-style: italic;
+    pointer-events: none;
+  }
+  .rich-editor b, .rich-editor strong { font-weight: 700; }
+  .rich-editor i, .rich-editor em { font-style: italic; }
+
+  /* Font option utilities for editor + rendered letters */
+  .font-pen      { font-family: 'Nanum Pen Script', cursive; }
+  .font-myeongjo { font-family: 'Gowun Batang', serif; }
+  .font-cursive  { font-family: 'Cormorant Garamond', serif; font-style: italic; }
+  .font-cute     { font-family: 'Gaegu', cursive; }
+
+  /* ─────────── PAPER TEXTURE OVERLAY (richer realism) ─────────── */
+  .paper-texture-overlay {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' seed='5'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.30  0 0 0 0 0.18  0 0 0 0.18 0'/></filter><rect width='300' height='300' filter='url(%23f)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.4;
+  }
+  .lcp .paper-texture-overlay { opacity: 0.3; }
+
+  /* Subtle envelope wrinkle */
+  .envelope-texture-overlay {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='250' height='250'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.10 0'/></filter><rect width='250' height='250' filter='url(%23f)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+    z-index: 1;
+  }
+  .envelope > *, .stage-envelope > * { position: relative; z-index: 2; }
+  .envelope .envelope-texture-overlay,
+  .stage-envelope .envelope-texture-overlay { z-index: 1; }
+
   /* config warning banner */
   .config-warning {
     position: fixed;
@@ -1432,6 +1956,7 @@
     <div class="me-card">
       <div class="name" id="me-name">—</div>
       <div class="loc" id="me-loc">—</div>
+      <button class="profile-btn" id="profile-btn" type="button">프로필 꾸미기</button>
       <button class="signout-btn" id="signout-btn" type="button">로그아웃</button>
     </div>
   </header>
@@ -1515,22 +2040,56 @@
         </div>
       </div>
 
+      <div class="editor-toolbar">
+        <select class="tb-select" id="tb-font" title="글꼴">
+          <option value="pen">펜글씨</option>
+          <option value="myeongjo">명조</option>
+          <option value="cursive">필기체</option>
+          <option value="cute">귀여운 손글씨</option>
+        </select>
+        <span class="tb-divider"></span>
+        <button class="tb-btn b" data-cmd="bold" title="굵게" type="button">B</button>
+        <button class="tb-btn i" data-cmd="italic" title="기울임" type="button">I</button>
+        <button class="tb-btn u" data-cmd="underline" title="밑줄" type="button">U</button>
+        <span class="tb-divider"></span>
+        <button class="tb-color active" data-color="ink"     title="잉크색" type="button"></button>
+        <button class="tb-color" data-color="sepia"   title="세피아" type="button"></button>
+        <button class="tb-color" data-color="crimson" title="진홍" type="button"></button>
+        <button class="tb-color" data-color="forest"  title="짙은 녹색" type="button"></button>
+      </div>
+
       <div class="field">
         <label>편지 내용</label>
-        <textarea class="letter-textarea" id="letter-body" placeholder="안녕하세요,&#10;&#10;오늘 이곳의 하늘은…"></textarea>
+        <div
+          class="rich-editor font-pen"
+          id="letter-body"
+          contenteditable="true"
+          data-placeholder="안녕하세요, 오늘 이곳의 하늘은…"
+        ></div>
       </div>
 
       <div class="image-strip" id="image-strip"></div>
 
+      <div class="style-row">
+        <div class="pm-section">
+          <div class="lbl">편지지</div>
+          <div class="pm-grid-paper" id="paper-picker"></div>
+        </div>
+        <div class="pm-section">
+          <div class="lbl">봉투</div>
+          <div class="pm-grid-paper" id="env-picker"></div>
+        </div>
+      </div>
+
       <div class="compose-actions">
         <div class="left">
-          <button class="icon-btn" id="add-image-btn" title="사진 첨부">📷</button>
+          <button class="icon-btn" id="add-image-btn" title="사진 첨부" type="button">📷</button>
           <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
         </div>
         <div class="delivery-estimate" id="delivery-estimate">
           받는 사람을 입력하면 배송 시간이 표시됩니다
         </div>
-        <button class="send-btn" id="send-btn" disabled>편지 보내기</button>
+        <button class="send-btn" id="send-btn" type="button" disabled>편지 보내기</button>
       </div>
     </div>
   </section>
@@ -1540,6 +2099,71 @@
     <div class="section-title">보낸 편지 <em>Sent Letters</em></div>
     <div class="sent-list" id="sent-list"></div>
   </section>
+</div>
+
+<!-- ═════════ PROFILE EDIT MODAL ═════════ -->
+<div class="profile-modal" id="profile-modal">
+  <div class="profile-card">
+    <button class="pmc-close" id="pmc-close" type="button">✕</button>
+    <h2>프로필 꾸미기 <em>Your Profile</em></h2>
+    <p class="sub">인장 색·심볼·기본 편지지를 정해두면 보내는 편지마다 자동으로 적용됩니다.</p>
+
+    <div class="profile-preview">
+      <div class="pp-seal" id="pp-seal">A</div>
+      <div class="pp-info">
+        <div class="pp-name" id="pp-name">—</div>
+        <div class="pp-bio" id="pp-bio"></div>
+      </div>
+    </div>
+
+    <div class="pm-section">
+      <div class="lbl">자기소개 (선택)</div>
+      <textarea class="pm-bio" id="pm-bio-input" maxlength="200" placeholder="좋아하는 것, 사는 곳, 안부…"></textarea>
+      <div class="pm-bio-count"><span id="pm-bio-count">0</span> / 200</div>
+    </div>
+
+    <div class="pm-section">
+      <div class="lbl">인장 색</div>
+      <div class="pm-row" id="pm-seal-colors">
+        <div class="seal-swatch" data-color="crimson"  title="진홍"></div>
+        <div class="seal-swatch" data-color="navy"     title="짙은 남색"></div>
+        <div class="seal-swatch" data-color="forest"   title="숲 녹색"></div>
+        <div class="seal-swatch" data-color="gold"     title="금색"></div>
+        <div class="seal-swatch" data-color="charcoal" title="잉크 검정"></div>
+        <div class="seal-swatch" data-color="plum"     title="자두색"></div>
+      </div>
+    </div>
+
+    <div class="pm-section">
+      <div class="lbl">인장 심볼</div>
+      <div class="pm-row" id="pm-seal-symbols">
+        <div class="symbol-swatch" data-symbol=""  title="이름 첫글자"><em>A</em></div>
+        <div class="symbol-swatch" data-symbol="★">★</div>
+        <div class="symbol-swatch" data-symbol="✿">✿</div>
+        <div class="symbol-swatch" data-symbol="❀">❀</div>
+        <div class="symbol-swatch" data-symbol="☘">☘</div>
+        <div class="symbol-swatch" data-symbol="♥">♥</div>
+        <div class="symbol-swatch" data-symbol="✉">✉</div>
+        <div class="symbol-swatch" data-symbol="❖">❖</div>
+        <div class="symbol-swatch" data-symbol="✦">✦</div>
+        <div class="symbol-swatch" data-symbol="❦">❦</div>
+      </div>
+    </div>
+
+    <div class="pm-section">
+      <div class="lbl">기본 편지지</div>
+      <div class="pm-grid-paper" id="pm-paper-default"></div>
+    </div>
+
+    <div class="pm-section">
+      <div class="lbl">기본 봉투</div>
+      <div class="pm-grid-paper" id="pm-env-default"></div>
+    </div>
+
+    <div id="pm-msg" style="display:none;"></div>
+
+    <button class="btn-primary" id="pm-save" type="button">저장하기</button>
+  </div>
 </div>
 
 <!-- ═════════ LETTER MODAL ═════════ -->
@@ -1557,6 +2181,7 @@
 //  CONFIG — 본인 Supabase 프로젝트 값으로 교체하세요
 // ═══════════════════════════════════════════════════════════
 const SUPABASE_URL      = 'https://dgikzwzaetqmwltiiaxy.supabase.co';
+
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnaWt6d3phZXRxbXdsdGlpYXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyODczNzAsImV4cCI6MjA5Mjg2MzM3MH0.LsLQFCL6vjV9WPQt4RgXtcWRbQ_WXhfmT8nYEnS4qvk';
 
 // ═══════════════════════════════════════════════════════════
@@ -1581,13 +2206,39 @@ const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ═══════════════════════════════════════════════════════════
 const State = {
   user: null,             // auth user (id, email)
-  me: null,               // profile row (id, username, lat, lng, location_name)
+  me: null,               // profile row (id, username, lat, lng, location_name, bio, seal_color, seal_symbol, paper_default, envelope_default)
   letters: [],            // received (only those with deliver_at <= now)
   sent: [],               // sent (all statuses)
   composeImages: [],      // [{ blob, dataUrl }]
+  composeStyle: {         // currently selected paper/envelope for the letter being composed
+    paper: 'cream',
+    envelope: 'cream'
+  },
   recipientCache: null,   // last validated recipient profile
   refreshTimer: null,
   authMode: 'signin'      // signin | signup
+};
+
+const PAPER_STYLES = [
+  { id: 'cream',  label: '크림' },
+  { id: 'lined',  label: '줄지' },
+  { id: 'grid',   label: '모눈' },
+  { id: 'aged',   label: '오래된' },
+  { id: 'ivory',  label: '아이보리' }
+];
+const ENVELOPE_STYLES = [
+  { id: 'cream',  label: '크림' },
+  { id: 'kraft',  label: '크라프트' },
+  { id: 'navy',   label: '네이비' },
+  { id: 'sage',   label: '세이지' },
+  { id: 'ivory',  label: '아이보리' }
+];
+const SEAL_COLORS = ['crimson', 'navy', 'forest', 'gold', 'charcoal', 'plum'];
+const TEXT_COLORS = {
+  ink:     '#1f2a44',
+  sepia:   '#6b4226',
+  crimson: '#8b1e1e',
+  forest:  '#3d5d3a'
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -1860,6 +2511,14 @@ async function launchApp() {
   document.getElementById('compose-date').textContent = longDate(Date.now());
   document.getElementById('mb-greeting').innerHTML = `${State.me.username}의 우편함 <em>Letterbox</em>`;
 
+  // Apply user's default paper/envelope as compose style
+  State.composeStyle.paper    = State.me.paper_default    || 'cream';
+  State.composeStyle.envelope = State.me.envelope_default || 'cream';
+
+  // Initialize compose pickers
+  renderPaperPicker();
+  renderEnvelopePicker();
+
   await Promise.all([loadMailbox(), loadSent()]);
   renderAll();
   startAutoRefresh();
@@ -1963,19 +2622,39 @@ function renderEnvelopes(elId, letters) {
 function envelopeHtml(L) {
   const distKm = Math.round(L.distance);
   const cityCode = (L.from_location_name || '').slice(0, 6).toUpperCase() || '——';
-  const seal = (L.from_username || '?')[0].toUpperCase();
+  const sealText = (L.seal_symbol && L.seal_symbol.length) ? L.seal_symbol : (L.from_username || '?')[0].toUpperCase();
+  const sealColor = L.seal_color || 'crimson';
+  const envStyle  = L.envelope_style || 'cream';
   const opened = L.opened ? 'opened' : '';
   return `
-    <div class="envelope ${opened}" data-letter-id="${L.id}" title="편지 열기">
+    <div class="envelope ${opened} seal-${escapeAttr(sealColor)}" data-env="${escapeAttr(envStyle)}" data-letter-id="${escapeAttr(L.id)}" title="편지 열기">
+      <div class="envelope-texture-overlay"></div>
       <div class="env-postmark"><div class="city">${escapeHtml(cityCode)}</div><div class="date">${shortDate(L.sent_at)}</div></div>
       <div class="env-stamp"><div class="km">${distKm}</div><div class="km-lbl">KM</div></div>
       <div class="env-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
-      ${L.opened ? '' : `<div class="env-seal">${escapeHtml(seal)}</div>`}
+      ${L.opened ? '' : `<div class="env-seal">${escapeHtml(sealText)}</div>`}
     </div>`;
 }
 
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/[^a-zA-Z0-9_\-]/g, '');
+}
+
+// Whitelist for safe HTML in letter bodies (we still pipe through DOMPurify)
+function sanitizeLetterHtml(html) {
+  if (typeof DOMPurify === 'undefined') {
+    // Fallback: strip all tags
+    return escapeHtml(html).replace(/\n/g, '<br>');
+  }
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'br', 'div', 'span', 'p'],
+    ALLOWED_ATTR: ['style'],
+    ALLOWED_CSS: ['color', 'font-family', 'font-weight', 'font-style', 'text-decoration'],
+    ALLOWED_URI_REGEXP: /^$/  // no URIs at all
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2006,18 +2685,21 @@ async function openLetter(id) {
 
   const stage = document.getElementById('letter-stage');
   const distKm = Math.round(L.distance);
-  const seal = (L.from_username || '?')[0].toUpperCase();
+  const sealText = (L.seal_symbol && L.seal_symbol.length) ? L.seal_symbol : (L.from_username || '?')[0].toUpperCase();
+  const sealColor = L.seal_color || 'crimson';
+  const envStyle  = L.envelope_style || 'cream';
   const cityCode = (L.from_location_name || '').slice(0, 6).toUpperCase() || '——';
 
   stage.innerHTML = `
-    <div class="stage-envelope" id="stage-env">
+    <div class="stage-envelope seal-${escapeAttr(sealColor)}" data-env="${escapeAttr(envStyle)}" id="stage-env">
+      <div class="envelope-texture-overlay"></div>
       <div class="torn-edge"></div>
       <div class="env-postmark" style="top:24px;left:24px;width:96px;height:96px;">
         <div class="city">${escapeHtml(cityCode)}</div><div class="date">${shortDate(L.sent_at)}</div>
       </div>
       <div class="stage-stamp"><div class="km">${distKm}</div><div class="km-lbl">KM</div><div class="yr">${new Date(L.sent_at).getFullYear()}</div></div>
       <div class="stage-from-meta"><span class="lbl">From</span>${escapeHtml(L.from_username)}<br><span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:0.85rem;color:var(--sepia);">${escapeHtml(L.from_location_name || '')}</span></div>
-      <div class="stage-seal">${escapeHtml(seal)}</div>
+      <div class="stage-seal">${escapeHtml(sealText)}</div>
     </div>
     <div class="tear-prompt" id="tear-prompt">봉투를 클릭해서 뜯어보세요</div>
   `;
@@ -2053,13 +2735,25 @@ async function renderLetterContent(L) {
   const imgsHtml = validUrls.length
     ? `<div class="lcp-images">${validUrls.map(src => `<img class="lcp-img" data-src="${escapeHtml(src)}" src="${escapeHtml(src)}" alt="">`).join('')}</div>`
     : '';
+
+  // Body: prefer sanitized HTML if present; fall back to plain text
+  let bodyHtml;
+  if (L.body_html && L.body_html.trim()) {
+    bodyHtml = sanitizeLetterHtml(L.body_html);
+  } else {
+    bodyHtml = escapeHtml(L.body || '').replace(/\n/g, '<br>');
+  }
+
+  const paperStyle = L.paper_style || 'cream';
+
   stage.innerHTML = `
-    <div class="letter-content-paper" id="lcp">
+    <div class="letter-content-paper lcp" id="lcp" data-paper="${escapeAttr(paperStyle)}">
+      <div class="paper-texture-overlay"></div>
       <div class="lcp-header">
         <div class="lcp-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
         <div class="lcp-date">${longDate(L.sent_at)}</div>
       </div>
-      <div class="lcp-body">${escapeHtml(L.body || '').replace(/\n/g, '<br>')}</div>
+      <div class="lcp-body">${bodyHtml}</div>
       ${imgsHtml}
       <div class="lcp-signature">
         <span class="pre">— 발신지 ${escapeHtml(L.from_location_name || '')} · ${Math.round(L.distance)}km 떨어진 곳에서 —</span>
@@ -2134,7 +2828,7 @@ async function checkRecipient() {
 }
 
 function updateComposeUi() {
-  const body = letterBody.value.trim();
+  const body = (letterBody.innerText || '').trim();
   const hasContent = body.length > 0 || State.composeImages.length > 0;
   if (State.recipientCache) {
     deliveryEstimate.innerHTML = `예상 배송 시간 <strong>${formatDuration(State.recipientCache.ms)}</strong>`;
@@ -2205,8 +2899,9 @@ sendBtn.addEventListener('click', sendLetter);
 
 async function sendLetter() {
   if (!State.recipientCache) return;
-  const body = letterBody.value.trim();
-  if (!body && State.composeImages.length === 0) return;
+  const bodyText = (letterBody.innerText || '').trim();
+  const bodyHtmlRaw = letterBody.innerHTML;
+  if (!bodyText && State.composeImages.length === 0) return;
 
   sendBtn.disabled = true;
   sendBtn.textContent = '발송 중…';
@@ -2229,6 +2924,9 @@ async function sendLetter() {
     const ms = State.recipientCache.ms;
     const now = Date.now();
 
+    // Sanitize HTML once on send (server-side check happens on display anyway)
+    const safeBodyHtml = sanitizeLetterHtml(bodyHtmlRaw);
+
     const { error } = await supa.from('letters').insert({
       id: letterId,
       from_user: State.me.id,
@@ -2238,16 +2936,21 @@ async function sendLetter() {
       from_lng: State.me.lng,
       to_user: State.recipientCache.profile.id,
       to_username: State.recipientCache.profile.username,
-      body,
+      body: bodyText,
+      body_html: safeBodyHtml,
       images: imagePaths,
       distance: dist,
       sent_at: new Date(now).toISOString(),
-      deliver_at: new Date(now + ms).toISOString()
+      deliver_at: new Date(now + ms).toISOString(),
+      paper_style: State.composeStyle.paper,
+      envelope_style: State.composeStyle.envelope,
+      seal_color: State.me.seal_color || 'crimson',
+      seal_symbol: State.me.seal_symbol || ''
     });
     if (error) throw error;
 
     // Reset compose form
-    letterBody.value = '';
+    letterBody.innerHTML = '';
     State.composeImages = [];
     renderImageStrip();
     showToast(`✈ ${State.recipientCache.profile.username}님에게 편지를 보냈어요 (${formatDuration(ms)} 후 도착)`);
@@ -2314,6 +3017,258 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
+
+// ═══════════════════════════════════════════════════════════
+//  COMPOSE: PAPER / ENVELOPE PICKERS
+// ═══════════════════════════════════════════════════════════
+function renderPaperPicker() {
+  const el = document.getElementById('paper-picker');
+  el.innerHTML = PAPER_STYLES.map(p =>
+    `<div class="paper-swatch ${p.id === State.composeStyle.paper ? 'active' : ''}"
+          data-paper="${p.id}" title="${p.label}"></div>`
+  ).join('');
+  el.querySelectorAll('.paper-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      State.composeStyle.paper = sw.dataset.paper;
+      el.querySelectorAll('.paper-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+    });
+  });
+}
+function renderEnvelopePicker() {
+  const el = document.getElementById('env-picker');
+  el.innerHTML = ENVELOPE_STYLES.map(e =>
+    `<div class="env-swatch ${e.id === State.composeStyle.envelope ? 'active' : ''}"
+          data-env="${e.id}" title="${e.label}"></div>`
+  ).join('');
+  el.querySelectorAll('.env-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      State.composeStyle.envelope = sw.dataset.env;
+      el.querySelectorAll('.env-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RICH EDITOR TOOLBAR
+// ═══════════════════════════════════════════════════════════
+const tbFontSelect = document.getElementById('tb-font');
+tbFontSelect.addEventListener('change', () => {
+  letterBody.classList.remove('font-pen', 'font-myeongjo', 'font-cursive', 'font-cute');
+  letterBody.classList.add('font-' + tbFontSelect.value);
+  letterBody.focus();
+});
+
+document.querySelectorAll('.tb-btn[data-cmd]').forEach(btn => {
+  btn.addEventListener('mousedown', e => e.preventDefault()); // keep selection
+  btn.addEventListener('click', () => {
+    document.execCommand(btn.dataset.cmd, false, null);
+    updateToolbarState();
+    letterBody.focus();
+  });
+});
+
+document.querySelectorAll('.tb-color').forEach(btn => {
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', () => {
+    const color = TEXT_COLORS[btn.dataset.color] || TEXT_COLORS.ink;
+    document.execCommand('foreColor', false, color);
+    document.querySelectorAll('.tb-color').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    letterBody.focus();
+  });
+});
+
+function updateToolbarState() {
+  ['bold', 'italic', 'underline'].forEach(cmd => {
+    const btn = document.querySelector(`.tb-btn[data-cmd="${cmd}"]`);
+    if (!btn) return;
+    try {
+      btn.classList.toggle('active', document.queryCommandState(cmd));
+    } catch {}
+  });
+}
+letterBody.addEventListener('keyup', updateToolbarState);
+letterBody.addEventListener('mouseup', updateToolbarState);
+
+// Strip formatting on paste so only plain text comes in (sanitize-by-default)
+letterBody.addEventListener('paste', e => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, text);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PROFILE EDIT MODAL
+// ═══════════════════════════════════════════════════════════
+const PM = {
+  modal:    document.getElementById('profile-modal'),
+  close:    document.getElementById('pmc-close'),
+  bioInput: document.getElementById('pm-bio-input'),
+  bioCount: document.getElementById('pm-bio-count'),
+  saveBtn:  document.getElementById('pm-save'),
+  msg:      document.getElementById('pm-msg'),
+  ppSeal:   document.getElementById('pp-seal'),
+  ppName:   document.getElementById('pp-name'),
+  ppBio:    document.getElementById('pp-bio'),
+  draft: {
+    bio: '',
+    seal_color: 'crimson',
+    seal_symbol: '',
+    paper_default: 'cream',
+    envelope_default: 'cream'
+  }
+};
+
+document.getElementById('profile-btn').addEventListener('click', openProfileModal);
+PM.close.addEventListener('click', () => PM.modal.classList.remove('show'));
+PM.modal.addEventListener('click', e => {
+  if (e.target === PM.modal) PM.modal.classList.remove('show');
+});
+
+function openProfileModal() {
+  // Snapshot current values into draft
+  PM.draft.bio              = State.me.bio || '';
+  PM.draft.seal_color       = State.me.seal_color || 'crimson';
+  PM.draft.seal_symbol      = State.me.seal_symbol || '';
+  PM.draft.paper_default    = State.me.paper_default || 'cream';
+  PM.draft.envelope_default = State.me.envelope_default || 'cream';
+
+  PM.bioInput.value = PM.draft.bio;
+  PM.bioCount.textContent = PM.draft.bio.length;
+  PM.msg.style.display = 'none';
+
+  // Render seal color row
+  document.querySelectorAll('#pm-seal-colors .seal-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === PM.draft.seal_color);
+  });
+
+  // Render symbol row — show name initial as the "default" option
+  const initial = (State.me.username || '?')[0].toUpperCase();
+  const defSym = document.querySelector('#pm-seal-symbols .symbol-swatch[data-symbol=""] em');
+  if (defSym) defSym.textContent = initial;
+  document.querySelectorAll('#pm-seal-symbols .symbol-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.symbol === PM.draft.seal_symbol);
+  });
+
+  // Render paper / envelope default pickers
+  renderProfileDefaultPaperPicker();
+  renderProfileDefaultEnvPicker();
+
+  updateProfilePreview();
+  PM.modal.classList.add('show');
+}
+
+function renderProfileDefaultPaperPicker() {
+  const el = document.getElementById('pm-paper-default');
+  el.innerHTML = PAPER_STYLES.map(p =>
+    `<div class="paper-swatch ${p.id === PM.draft.paper_default ? 'active' : ''}"
+          data-paper="${p.id}" title="${p.label}"></div>`
+  ).join('');
+  el.querySelectorAll('.paper-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      PM.draft.paper_default = sw.dataset.paper;
+      el.querySelectorAll('.paper-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+    });
+  });
+}
+function renderProfileDefaultEnvPicker() {
+  const el = document.getElementById('pm-env-default');
+  el.innerHTML = ENVELOPE_STYLES.map(e =>
+    `<div class="env-swatch ${e.id === PM.draft.envelope_default ? 'active' : ''}"
+          data-env="${e.id}" title="${e.label}"></div>`
+  ).join('');
+  el.querySelectorAll('.env-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      PM.draft.envelope_default = sw.dataset.env;
+      el.querySelectorAll('.env-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+    });
+  });
+}
+
+document.querySelectorAll('#pm-seal-colors .seal-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    PM.draft.seal_color = sw.dataset.color;
+    document.querySelectorAll('#pm-seal-colors .seal-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    updateProfilePreview();
+  });
+});
+document.querySelectorAll('#pm-seal-symbols .symbol-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    PM.draft.seal_symbol = sw.dataset.symbol;
+    document.querySelectorAll('#pm-seal-symbols .symbol-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    updateProfilePreview();
+  });
+});
+
+PM.bioInput.addEventListener('input', () => {
+  PM.draft.bio = PM.bioInput.value.slice(0, 200);
+  PM.bioCount.textContent = PM.draft.bio.length;
+  updateProfilePreview();
+});
+
+function updateProfilePreview() {
+  PM.ppName.textContent = State.me.username;
+  PM.ppBio.textContent = PM.draft.bio || '';
+  const initial = (State.me.username || '?')[0].toUpperCase();
+  const sym = PM.draft.seal_symbol || initial;
+  PM.ppSeal.textContent = sym;
+
+  // Apply seal color
+  const sealColors = {
+    crimson:  ['var(--seal-crimson-l)',  'var(--seal-crimson)',  'var(--seal-crimson-d)'],
+    navy:     ['var(--seal-navy-l)',     'var(--seal-navy)',     'var(--seal-navy-d)'],
+    forest:   ['var(--seal-forest-l)',   'var(--seal-forest)',   'var(--seal-forest-d)'],
+    gold:     ['var(--seal-gold-l)',     'var(--seal-gold)',     'var(--seal-gold-d)'],
+    charcoal: ['var(--seal-charcoal-l)', 'var(--seal-charcoal)', 'var(--seal-charcoal-d)'],
+    plum:     ['var(--seal-plum-l)',     'var(--seal-plum)',     'var(--seal-plum-d)']
+  };
+  const c = sealColors[PM.draft.seal_color] || sealColors.crimson;
+  PM.ppSeal.style.background = `radial-gradient(circle at 35% 35%, ${c[0]} 0%, ${c[1]} 50%, ${c[2]} 100%)`;
+}
+
+PM.saveBtn.addEventListener('click', async () => {
+  PM.msg.style.display = 'none';
+  PM.saveBtn.disabled = true;
+  PM.saveBtn.textContent = '저장 중…';
+  try {
+    const { data, error } = await supa
+      .from('profiles')
+      .update({
+        bio:              PM.draft.bio,
+        seal_color:       PM.draft.seal_color,
+        seal_symbol:      PM.draft.seal_symbol,
+        paper_default:    PM.draft.paper_default,
+        envelope_default: PM.draft.envelope_default
+      })
+      .eq('id', State.me.id)
+      .select()
+      .single();
+    if (error) throw error;
+    State.me = data;
+
+    // Update compose picker selections to reflect new defaults
+    State.composeStyle.paper    = State.me.paper_default;
+    State.composeStyle.envelope = State.me.envelope_default;
+    renderPaperPicker();
+    renderEnvelopePicker();
+
+    PM.modal.classList.remove('show');
+    showToast('프로필이 저장됐어요');
+  } catch (err) {
+    PM.msg.className = 'auth-error';
+    PM.msg.textContent = err.message || '저장에 실패했습니다';
+    PM.msg.style.display = 'block';
+  } finally {
+    PM.saveBtn.disabled = false;
+    PM.saveBtn.textContent = '저장하기';
+  }
+});
 
 // ═══════════════════════════════════════════════════════════
 //  BOOT
