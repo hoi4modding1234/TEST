@@ -270,6 +270,9 @@ function openProfileModal() {
   // Initialize notification toggle state
   refreshNotifToggle();
 
+  // 우표함 렌더
+  if (typeof renderCollection === 'function') renderCollection();
+
   // Close all accordions on open
   document.querySelectorAll('.profile-card .acc-group').forEach(g => g.classList.remove('open'));
 

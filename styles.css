@@ -2074,3 +2074,679 @@
 }
 .pp-info .pp-loc::before { content: '⌖ '; }
 
+
+/* ═══════════════════════════════════════════════════════════
+   v4: STAMPS (수집·해금형 우표)
+   ═══════════════════════════════════════════════════════════ */
+
+/* 우표는 정형화된 비례를 가짐 — 봉투에서, 우표함에서, 선택 UI에서 같은 비율 */
+.stamp-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 봉투에 붙은 우표 (envelope의 .env-stamp 대체용 — postage-stamp 클래스) */
+.envelope .postage-stamp,
+.stage-envelope .postage-stamp {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 64px;
+  height: 78px;
+  z-index: 3;
+  transform: rotate(3deg);
+  box-shadow: 1px 2px 5px rgba(0,0,0,0.18);
+  background: #fff;
+  /* 우표 가장자리의 톱니 (CSS로 punch-out 흉내) */
+  -webkit-mask:
+    radial-gradient(circle at 0 0, transparent 4px, #000 4px) no-repeat -4px -4px,
+    radial-gradient(circle, transparent 4px, #000 4px) repeat-x top -4px left 0/8px 8px,
+    radial-gradient(circle, transparent 4px, #000 4px) repeat-x bottom -4px left 0/8px 8px,
+    radial-gradient(circle, transparent 4px, #000 4px) repeat-y top 0 left -4px/8px 8px,
+    radial-gradient(circle, transparent 4px, #000 4px) repeat-y top 0 right -4px/8px 8px,
+    linear-gradient(#000, #000);
+}
+.stage-envelope .postage-stamp {
+  width: 92px;
+  height: 110px;
+  top: 18px;
+  right: 22px;
+}
+
+/* postmark가 우표 위에 살짝 걸쳐 찍히는 효과 (진짜 우편처럼) */
+.envelope .postage-stamp::after,
+.stage-envelope .postage-stamp::after {
+  content: '';
+  position: absolute;
+  top: 60%;
+  left: -20%;
+  right: -20%;
+  height: 30%;
+  background:
+    repeating-linear-gradient(
+      -8deg,
+      transparent 0 4px,
+      rgba(45, 36, 25, 0.35) 4px 5px,
+      transparent 5px 12px
+    );
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* ─── 도장 (postmark) 새 디자인: 곡선으로 둘러싸인 정통 형태 ─── */
+.envelope .env-postmark,
+.stage-envelope .env-postmark {
+  /* 기존 단순 원형을 좀 더 큰 정통 도장으로 */
+  width: 92px;
+  height: 92px;
+  border: 2px solid var(--postmark);
+}
+.stage-envelope .env-postmark {
+  width: 110px;
+  height: 110px;
+}
+
+/* 도장 안의 배치: 위쪽 호=도시, 가운데=날짜, 아래쪽 호=거리 */
+.env-postmark .pm-arc-top,
+.env-postmark .pm-arc-bot {
+  position: absolute;
+  left: 0; right: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.env-postmark .pm-arc-top { top: 6%; height: 50%; }
+.env-postmark .pm-arc-bot { bottom: 6%; height: 50%; }
+.env-postmark .pm-arc-top svg,
+.env-postmark .pm-arc-bot svg {
+  width: 100%;
+  height: 100%;
+}
+.env-postmark .pm-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--postmark);
+}
+.stage-envelope .env-postmark .pm-center {
+  font-size: 0.85rem;
+}
+/* 기존 ::before/::after 가로선은 새 디자인에서 제거 */
+.envelope .env-postmark::before,
+.envelope .env-postmark::after,
+.stage-envelope .env-postmark::before,
+.stage-envelope .env-postmark::after {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 작성 영역 편지지 동기화
+   ═══════════════════════════════════════════════════════════ */
+
+/* 작성 중인 letter-textarea 영역 (실제로는 contenteditable) 가 편지지 변경에 반응 */
+.compose-paper {
+  /* 기본은 cream — paper-style data attribute가 이걸 덮어씀 */
+  transition: background 0.5s ease, background-color 0.5s ease;
+}
+.compose-paper[data-paper="cream"] {
+  background-color: #f3e8d0;
+  background-image: linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+}
+.compose-paper[data-paper="lined"] {
+  background-color: #f3e8d0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 32px, rgba(45, 90, 130, 0.2) 32px 33px),
+    linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+}
+.compose-paper[data-paper="grid"] {
+  background-color: #f3e8d0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(45, 90, 130, 0.15) 24px 25px),
+    repeating-linear-gradient(90deg, transparent 0 24px, rgba(45, 90, 130, 0.15) 24px 25px),
+    linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+}
+.compose-paper[data-paper="aged"] {
+  background-color: #e8d6a8;
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(107, 66, 38, 0.18) 0%, transparent 30%),
+    radial-gradient(ellipse at 80% 70%, rgba(107, 66, 38, 0.16) 0%, transparent 35%),
+    radial-gradient(ellipse at 50% 90%, rgba(107, 66, 38, 0.12) 0%, transparent 25%),
+    linear-gradient(180deg, #ecdcb0 0%, #d8c590 100%);
+}
+.compose-paper[data-paper="ivory"] {
+  background-color: #faf3e0;
+  background-image: linear-gradient(180deg, #fefaee 0%, #f4ecd0 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 제목 필드
+   ═══════════════════════════════════════════════════════════ */
+
+.title-field {
+  padding-left: 30px;
+  margin-bottom: 18px;
+}
+.title-field input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--sepia-soft);
+  padding: 6px 4px;
+  font-family: 'Gowun Batang', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.title-field input:focus { outline: none; border-bottom-color: var(--wax); }
+.title-field input::placeholder {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--sepia);
+  opacity: 0.55;
+}
+
+/* 봉투에 표시되는 제목 — 발신자 위에 살짝 */
+.envelope .env-title {
+  position: absolute;
+  bottom: 38px;
+  left: 14px;
+  right: 80px;
+  z-index: 2;
+  font-family: 'Gowun Batang', serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.envelope[data-env="navy"] .env-title { color: #f0e8d0; }
+.envelope[data-env="kraft"] .env-title { color: #2d1f0f; }
+
+.stage-envelope .stage-title {
+  position: absolute;
+  bottom: 70px;
+  left: 22px;
+  right: 110px;
+  z-index: 3;
+  font-family: 'Gowun Batang', serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+.stage-envelope[data-env="navy"] .stage-title { color: #f0e8d0; }
+.stage-envelope[data-env="kraft"] .stage-title { color: #2d1f0f; }
+
+/* 보낸 편지 / 받은 편지 종이 위 제목 표시 */
+.lcp-title {
+  font-family: 'Gowun Batang', serif;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--ink);
+  margin-bottom: 14px;
+  padding-left: 30px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--sepia-soft);
+}
+
+/* 보낸 편지 목록의 제목 */
+.sent-item .meta .title-line {
+  font-family: 'Gowun Batang', serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.sent-item { cursor: pointer; transition: background 0.15s; }
+.sent-item:hover { background: rgba(255, 255, 255, 0.6); }
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 봉투화 시퀀스 (편지 → 접힘 → 봉투 → 봉인 → 확인)
+   ═══════════════════════════════════════════════════════════ */
+
+.seal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 16, 10, 0.78);
+  backdrop-filter: blur(8px);
+}
+.seal-modal.show { display: flex; }
+
+.seal-stage {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  perspective: 1200px;
+}
+
+/* 접히는 종이 — 작은 미리보기 */
+.fold-paper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5/3;
+  background-color: #f3e8d0;
+  background-image: linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  border: 1px solid var(--sepia-soft);
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  transition: transform 0.7s cubic-bezier(0.6, 0.0, 0.2, 1.0), opacity 0.4s;
+  font-family: 'Nanum Pen Script', cursive;
+  padding: 24px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  line-height: 1.5;
+  overflow: hidden;
+}
+.fold-paper[data-paper="lined"] {
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 14px, rgba(45,90,130,0.18) 14px 15px),
+    linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+}
+.fold-paper[data-paper="grid"] {
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 12px, rgba(45,90,130,0.13) 12px 13px),
+    repeating-linear-gradient(90deg, transparent 0 12px, rgba(45,90,130,0.13) 12px 13px),
+    linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+}
+.fold-paper[data-paper="aged"] {
+  background-color: #e8d6a8;
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(107,66,38,0.2) 0%, transparent 35%),
+    radial-gradient(ellipse at 80% 70%, rgba(107,66,38,0.18) 0%, transparent 35%),
+    linear-gradient(180deg, #ecdcb0 0%, #d8c590 100%);
+}
+.fold-paper[data-paper="ivory"] {
+  background-image: linear-gradient(180deg, #fefaee 0%, #f4ecd0 100%);
+}
+
+/* 두 번 접기: 위쪽 1/3, 아래쪽 1/3 */
+.fold-paper.fold-1 {
+  transform: rotateX(15deg) scale(0.92);
+}
+.fold-paper.fold-2 {
+  transform: rotateX(35deg) scale(0.78) translateY(20px);
+  filter: brightness(0.95);
+}
+
+/* 봉투로 변환되는 시점 — fold-paper가 사라지고 stage-envelope이 등장 */
+.seal-envelope-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.5s 0.7s;
+  pointer-events: none;
+}
+.seal-envelope-wrap.show { opacity: 1; }
+
+.seal-envelope {
+  width: 100%;
+  aspect-ratio: 5/3;
+  position: relative;
+  background: linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%);
+  box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+  border: 1px solid var(--sepia-soft);
+  overflow: hidden;
+}
+.seal-envelope[data-env="kraft"] {
+  background: linear-gradient(135deg, #c89c6e 0%, #a87a48 100%);
+}
+.seal-envelope[data-env="navy"] {
+  background: linear-gradient(135deg, #3a5670 0%, #2a4255 100%);
+}
+.seal-envelope[data-env="sage"] {
+  background: linear-gradient(135deg, #c8d4b8 0%, #a8b896 100%);
+}
+.seal-envelope[data-env="ivory"] {
+  background: linear-gradient(135deg, #faf3e0 0%, #efe5c8 100%);
+}
+
+/* 봉투 윗덮개 — 처음엔 펼쳐진 상태(아래로) → 접힘(위로) */
+.seal-envelope .seal-flap {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, #d9c69e 0%, #c8b384 100%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: 50% 0;
+  transform: rotateX(180deg);  /* 펼쳐진 상태로 시작 */
+  transition: transform 0.8s cubic-bezier(0.4, 1.2, 0.5, 1);
+}
+.seal-envelope[data-env="kraft"] .seal-flap { background: linear-gradient(180deg, #9c7040 0%, #7a5530 100%); }
+.seal-envelope[data-env="navy"] .seal-flap  { background: linear-gradient(180deg, #243848 0%, #1a2a38 100%); }
+.seal-envelope[data-env="sage"] .seal-flap  { background: linear-gradient(180deg, #98a884 0%, #788c64 100%); }
+.seal-envelope[data-env="ivory"] .seal-flap { background: linear-gradient(180deg, #e2d4a8 0%, #d0bf90 100%); }
+
+.seal-envelope.flap-closed .seal-flap {
+  transform: rotateX(0deg);
+}
+
+/* 봉인이 찍히는 순간 — 위에서 떨어지듯 */
+.seal-envelope .impact-seal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 2.2rem;
+  color: rgba(255, 230, 200, 0.85);
+  font-weight: 600;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+  background: radial-gradient(circle at 35% 35%, var(--scl) 0%, var(--sc) 50%, var(--scd) 100%);
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.4),
+    inset 0 -3px 6px rgba(0,0,0,0.3),
+    inset 0 3px 5px rgba(255,255,255,0.2);
+  transform: translate(-50%, -50%) scale(3);
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
+.seal-envelope.sealed .impact-seal {
+  animation: sealImpact 0.5s cubic-bezier(0.4, 1.6, 0.4, 1) forwards;
+}
+@keyframes sealImpact {
+  0%   { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+  60%  { transform: translate(-50%, -50%) scale(0.92); opacity: 1; }
+  80%  { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* 확인 패널 — 봉인 후 등장 */
+.seal-confirm {
+  margin-top: 36px;
+  text-align: center;
+  color: var(--paper);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s 0.4s, transform 0.5s 0.4s;
+}
+.seal-confirm.show { opacity: 1; transform: translateY(0); }
+.seal-confirm .sc-q {
+  font-family: 'Gowun Batang', serif;
+  font-size: 1.15rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+.seal-confirm .sc-meta {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: rgba(243, 232, 208, 0.7);
+  margin-bottom: 18px;
+}
+.seal-confirm .sc-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.seal-confirm .sc-btn {
+  background: transparent;
+  color: var(--paper);
+  border: 1px solid rgba(243, 232, 208, 0.5);
+  padding: 10px 26px;
+  font-family: 'Gowun Batang', serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+.seal-confirm .sc-btn:hover { background: rgba(243, 232, 208, 0.1); }
+.seal-confirm .sc-btn.primary {
+  background: var(--wax);
+  border-color: var(--wax);
+}
+.seal-confirm .sc-btn.primary:hover { background: var(--wax-deep); }
+
+/* 보내고 나서 봉투가 날아가는 애니메이션 */
+.seal-envelope.flying {
+  animation: envFly 1.2s cubic-bezier(0.4, 0.0, 0.6, 1) forwards;
+}
+@keyframes envFly {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translate(60vw, -90vh) rotate(-25deg) scale(0.3); opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 우표 선택 (보내기 전 마지막 단계)
+   ═══════════════════════════════════════════════════════════ */
+
+.stamp-picker-section {
+  padding: 0 30px;
+  margin-top: 6px;
+}
+.stamp-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.stamp-option {
+  position: relative;
+  aspect-ratio: 5/6;
+  background: #fff;
+  border: 1px solid var(--sepia-soft);
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.stamp-option:hover { transform: translateY(-2px); }
+.stamp-option.active {
+  box-shadow: 0 0 0 3px var(--wax);
+  transform: translateY(-2px);
+}
+.stamp-option .so-svg {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.stamp-option .so-svg svg {
+  width: 100%;
+  height: 100%;
+}
+.stamp-option .so-name {
+  font-family: 'Gowun Dodum', sans-serif;
+  font-size: 0.65rem;
+  text-align: center;
+  color: var(--sepia);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 우편함 클릭 수령 모델
+   ═══════════════════════════════════════════════════════════ */
+
+/* 깃발 옆 작은 알림 — 받지 않은 편지가 있다는 안내 */
+.pickup-hint {
+  display: inline-block;
+  margin-left: 12px;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--wax);
+  vertical-align: middle;
+  animation: pickupBob 1.6s ease-in-out infinite;
+}
+.pickup-hint::before { content: '✉ '; }
+@keyframes pickupBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* 깃발이 올라가 있을 때 우편함 자체가 살짝 떨림 (받지 않은 편지가 있다) */
+.mailbox-svg-wrap.has-pending {
+  animation: mailboxNudge 3s ease-in-out infinite;
+}
+@keyframes mailboxNudge {
+  0%, 92%, 100% { transform: translateY(0) rotate(0deg); }
+  94%           { transform: translateY(-2px) rotate(-0.5deg); }
+  96%           { transform: translateY(-1px) rotate(0.5deg); }
+  98%           { transform: translateY(-2px) rotate(-0.3deg); }
+}
+
+/* 편지가 우편함에서 쏟아지는 애니메이션 */
+.pickup-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  display: none;
+}
+.pickup-flash.show { display: block; }
+.pickup-flash .flying-letter {
+  position: absolute;
+  width: 80px;
+  height: 50px;
+  background: linear-gradient(135deg, #f5ebd2 0%, #ead9b6 100%);
+  border: 1px solid var(--sepia-soft);
+  box-shadow: 2px 4px 12px rgba(0,0,0,0.3);
+  animation: letterFly 1s cubic-bezier(0.3, 0.0, 0.7, 1) forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 우표 해금 알림 (toast 강화)
+   ═══════════════════════════════════════════════════════════ */
+
+.unlock-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 16, 10, 0.7);
+  backdrop-filter: blur(6px);
+}
+.unlock-modal.show { display: flex; animation: fadeIn 0.4s; }
+.unlock-card {
+  background: var(--paper);
+  padding: 40px 36px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid var(--gold);
+  box-shadow:
+    0 0 0 6px var(--paper),
+    0 0 0 7px var(--gold),
+    0 30px 60px rgba(0,0,0,0.5);
+  animation: unlockPop 0.5s cubic-bezier(0.4, 1.4, 0.4, 1);
+}
+@keyframes unlockPop {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.unlock-card .uc-eyebrow {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--gold-deep);
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+}
+.unlock-card .uc-eyebrow::before { content: '— '; }
+.unlock-card .uc-eyebrow::after { content: ' —'; }
+.unlock-card .uc-stamp {
+  width: 110px;
+  height: 132px;
+  margin: 0 auto 18px;
+  background: #fff;
+  padding: 4px;
+  box-shadow: 2px 3px 10px rgba(0,0,0,0.2);
+}
+.unlock-card .uc-name {
+  font-family: 'Gowun Batang', serif;
+  font-size: 1.4rem;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.unlock-card .uc-desc {
+  font-family: 'Gowun Dodum', sans-serif;
+  font-size: 0.9rem;
+  color: var(--sepia);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+.unlock-card .uc-btn {
+  background: var(--wax);
+  color: var(--paper);
+  border: none;
+  padding: 10px 28px;
+  font-family: 'Gowun Batang', serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.unlock-card .uc-btn:hover { background: var(--wax-deep); }
+
+/* ═══════════════════════════════════════════════════════════
+   v4: 보유 우표 컬렉션 (프로필 모달 안)
+   ═══════════════════════════════════════════════════════════ */
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.collection-item {
+  aspect-ratio: 5/6;
+  background: #fff;
+  border: 1px solid var(--sepia-soft);
+  padding: 4px;
+  position: relative;
+  transition: transform 0.15s;
+  cursor: help;
+}
+.collection-item:hover { transform: translateY(-2px); }
+.collection-item.locked {
+  background: rgba(45, 36, 25, 0.08);
+  border-style: dashed;
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+.collection-item.locked::after {
+  content: '?';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem;
+  color: var(--sepia);
+}
+.collection-item.locked > * { display: none; }
+.collection-item .ci-svg {
+  width: 100%;
+  height: 100%;
+}

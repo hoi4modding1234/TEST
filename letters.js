@@ -7,25 +7,71 @@
 // ───────────────────────────────────────────────────────────
 async function loadMailbox() {
   const nowIso = new Date().toISOString();
+  // 도착했고 + 사용자가 우편함을 열어 가져간 편지만 우편함 안에 표시
   const { data, error } = await supa
     .from('letters')
     .select('*')
     .eq('to_user', State.me.id)
     .lte('deliver_at', nowIso)
+    .eq('picked_up', true)
     .order('deliver_at', { ascending: false });
   if (error) { console.error(error); return; }
-  const letters = data || [];
+  State.letters = data || [];
+}
 
-  // Notification: any new letter id we haven't seen before
-  if (State.seenLetterIds.size > 0) {  // skip on first load
-    for (const L of letters) {
-      if (!State.seenLetterIds.has(L.id)) {
-        notifyNewLetter(L);
-      }
-    }
-  }
-  State.seenLetterIds = new Set(letters.map(l => l.id));
-  State.letters = letters;
+// 도착했지만 아직 안 가져간 편지 — 우편함 클릭 시 가져옴
+async function loadPendingCount() {
+  const nowIso = new Date().toISOString();
+  const { count, error } = await supa
+    .from('letters')
+    .select('id', { count: 'exact', head: true })
+    .eq('to_user', State.me.id)
+    .lte('deliver_at', nowIso)
+    .eq('picked_up', false);
+  if (error) { console.error(error); State.pendingCount = 0; return; }
+  State.pendingCount = count || 0;
+}
+
+// 우편함을 클릭해서 미수령 편지를 모두 가져오는 액션
+async function pickupLetters() {
+  if (!State.pendingCount || State.pendingCount === 0) return;
+  const nowIso = new Date().toISOString();
+  // 가져갈 편지를 먼저 조회 (알림용)
+  const { data: pending, error: fetchErr } = await supa
+    .from('letters')
+    .select('*')
+    .eq('to_user', State.me.id)
+    .lte('deliver_at', nowIso)
+    .eq('picked_up', false);
+  if (fetchErr) { console.error(fetchErr); return; }
+
+  // picked_up = true 로 표시
+  const { error: updErr } = await supa
+    .from('letters')
+    .update({ picked_up: true, picked_up_at: nowIso })
+    .eq('to_user', State.me.id)
+    .lte('deliver_at', nowIso)
+    .eq('picked_up', false);
+  if (updErr) { console.error(updErr); showToast('편지를 가져오지 못했어요'); return; }
+
+  // 알림 (브라우저 알림)
+  for (const L of (pending || [])) notifyNewLetter(L);
+
+  // UI 갱신
+  await Promise.all([loadMailbox(), loadPendingCount()]);
+  renderAll();
+
+  // 우편함 시각 효과
+  flashPickup(pending.length);
+
+  // 도전과제 검사
+  checkAchievementsBackground();
+}
+
+function flashPickup(count) {
+  // 짧은 토스트로 알림
+  const word = count === 1 ? '한 통' : `${count}통`;
+  showToast(`✉ ${word}의 편지를 가져왔어요`);
 }
 
 async function loadSent() {
@@ -42,8 +88,8 @@ async function loadSent() {
 //  RENDER MAILBOX
 // ───────────────────────────────────────────────────────────
 function renderAll() {
-  const arrivedCount = State.letters.length;
-  const newOnes = State.letters.filter(l => !l.opened);
+  const arrivedCount = State.letters.length;        // 이미 가져간 편지
+  const pendingCount = State.pendingCount || 0;     // 가져가기 대기
   const transitFromMe = State.sent.filter(l => new Date(l.deliver_at).getTime() > Date.now());
 
   document.getElementById('stat-arrived').textContent = arrivedCount;
@@ -51,23 +97,33 @@ function renderAll() {
   const transitLbl = document.querySelector('#stat-transit + .lbl');
   if (transitLbl) transitLbl.textContent = '내가 보낸·배송 중';
 
+  // 깃발: 가져가기 대기 중인 편지가 있을 때 올라감
+  const wrap = document.getElementById('mailbox-svg-wrap');
+  const flag = document.getElementById('mb-flag');
   const badge = document.getElementById('badge-new');
-  if (newOnes.length > 0) {
+  if (pendingCount > 0) {
+    flag.classList.add('up');
+    wrap.classList.add('has-pending');
     badge.style.display = 'inline-block';
-    badge.textContent = newOnes.length;
-    document.getElementById('mb-flag').classList.add('up');
+    badge.textContent = pendingCount;
   } else {
+    flag.classList.remove('up');
+    wrap.classList.remove('has-pending');
     badge.style.display = 'none';
-    document.getElementById('mb-flag').classList.remove('up');
   }
 
+  // 새로 도착한(아직 안 읽은) — 가져온 편지 중에서
+  const unreadCount = State.letters.filter(l => !l.opened).length;
+
   const desc = document.getElementById('mb-desc');
-  if (newOnes.length > 0) {
-    desc.textContent = `깃발이 올라가 있어요 — ${newOnes.length}통의 새 편지가 기다리고 있습니다.`;
+  if (pendingCount > 0) {
+    desc.innerHTML = `깃발이 올라가 있어요 — <strong>${pendingCount}통</strong>의 편지가 우편함을 열기를 기다리고 있습니다. <span class="pickup-hint">우편함을 열어 가져오세요</span>`;
+  } else if (unreadCount > 0) {
+    desc.textContent = `우편함에 ${unreadCount}통의 안 읽은 편지가 있어요.`;
   } else if (arrivedCount > 0) {
-    desc.textContent = '새로 도착한 편지는 없지만, 이전 편지들을 다시 펼쳐볼 수 있어요.';
+    desc.textContent = '새로 도착한 편지는 없습니다. 이전 편지들을 다시 펼쳐볼 수 있어요.';
   } else {
-    desc.textContent = '아직 도착한 편지가 없습니다. 친구의 이름을 알려주고 첫 편지를 받아보세요.';
+    desc.textContent = '우편함이 비어있습니다. 편지를 보내거나 친구의 편지를 기다려보세요.';
   }
 
   renderEnvelopes('arrived-grid', State.letters);
@@ -97,22 +153,91 @@ function envelopeHtml(L) {
   const sealColor = L.seal_color || 'crimson';
   const envStyle  = L.envelope_style || 'cream';
   const opened = L.opened ? 'opened' : '';
+  const titleHtml = L.title ? `<div class="env-title">${escapeHtml(L.title)}</div>` : '';
+  const stampSvg = renderStampSvg(L.stamp_id || 'standard', { km: distKm, sealColor });
   return `
     <div class="envelope ${opened} seal-${escapeAttr(sealColor)}" data-env="${escapeAttr(envStyle)}" data-letter-id="${escapeAttr(L.id)}" title="편지 열기">
       <div class="envelope-texture-overlay"></div>
-      <div class="env-postmark"><div class="city">${escapeHtml(cityCode)}</div><div class="date">${shortDate(L.sent_at)}</div></div>
-      <div class="env-stamp"><div class="km">${distKm}</div><div class="km-lbl">KM</div></div>
+      <div class="env-postmark">${postmarkInner(cityCode, L.sent_at, distKm)}</div>
+      <div class="postage-stamp">${stampSvg}</div>
+      ${titleHtml}
       <div class="env-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
       ${L.opened ? '' : `<div class="env-seal">${escapeHtml(sealText)}</div>`}
     </div>`;
 }
 
+// 도장 내부: 위쪽 호=도시 / 가운데=날짜 / 아래쪽 호=거리
+function postmarkInner(cityCode, sentAt, distKm) {
+  const dateShort = shortDate(sentAt);
+  const km = distKm != null ? `${distKm} KM` : '';
+  // SVG로 호를 따라가는 텍스트
+  const topArc = `
+    <div class="pm-arc-top">
+      <svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <path id="pmTop-${escapeAttr(cityCode)}-${Math.random().toString(36).slice(2,7)}" d="M 12 38 A 38 38 0 0 1 88 38" fill="none"/>
+        </defs>
+      </svg>
+    </div>`;
+  // 호를 따라가는 텍스트는 동일 SVG 안에서 textPath 로 — 위 구조를 통합
+  const uniqA = 'a' + Math.random().toString(36).slice(2, 8);
+  const uniqB = 'b' + Math.random().toString(36).slice(2, 8);
+  return `
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+      <defs>
+        <path id="${uniqA}" d="M 14 44 A 36 36 0 0 1 86 44" fill="none"/>
+        <path id="${uniqB}" d="M 14 56 A 36 36 0 0 0 86 56" fill="none"/>
+      </defs>
+      <text font-family="Cormorant Garamond, serif" font-size="9" letter-spacing="1.5" fill="currentColor" font-weight="600">
+        <textPath href="#${uniqA}" startOffset="50%" text-anchor="middle">${escapeHtml(cityCode)}</textPath>
+      </text>
+      <text font-family="Cormorant Garamond, serif" font-size="8" letter-spacing="1" fill="currentColor" font-style="italic">
+        <textPath href="#${uniqB}" startOffset="50%" text-anchor="middle">${escapeHtml(km)}</textPath>
+      </text>
+    </svg>
+    <div class="pm-center">${escapeHtml(dateShort)}</div>
+  `;
+}
+
 // ───────────────────────────────────────────────────────────
 //  MAILBOX SVG
 // ───────────────────────────────────────────────────────────
-document.getElementById('mailbox-svg-wrap').addEventListener('click', e => {
-  e.currentTarget.classList.toggle('open');
+// 우편함 클릭: 문 열고/닫고 + 미수령 편지가 있다면 가져오기
+document.getElementById('mailbox-svg-wrap').addEventListener('click', async (e) => {
+  const wrap = e.currentTarget;
+  const wasOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open');
+
+  // 막 열렸을 때, 가져갈 편지가 있으면 약간의 지연 후 가져옴 (문 열리는 모션 후)
+  if (!wasOpen && State.pendingCount > 0) {
+    setTimeout(() => { pickupLetters(); }, 600);
+  }
 });
+
+// ═══════════════════════════════════════════════════════════
+//  도전과제 검사 — 백그라운드 호출
+// ═══════════════════════════════════════════════════════════
+let achievementCheckInFlight = false;
+async function checkAchievementsBackground() {
+  if (achievementCheckInFlight) return;
+  achievementCheckInFlight = true;
+  try {
+    const { data, error } = await supa.rpc('check_achievements');
+    if (error) { console.warn('achievement check failed', error); return; }
+    if (data && data.length > 0) {
+      // 새로 해금된 우표 — 알림 모달 띄우기
+      for (const stampId of data) {
+        showStampUnlock(stampId);
+      }
+      // 보유 우표 갱신
+      await loadMyStamps();
+      // 우표 선택 UI 갱신 (작성 중일 수도 있으니)
+      if (typeof renderStampPicker === 'function') renderStampPicker();
+    }
+  } finally {
+    achievementCheckInFlight = false;
+  }
+}
 
 // ───────────────────────────────────────────────────────────
 //  OPEN LETTER (modal + tear animation)
@@ -127,15 +252,18 @@ async function openLetter(id) {
   const sealColor = L.seal_color || 'crimson';
   const envStyle  = L.envelope_style || 'cream';
   const cityCode = (L.from_location_name || '').slice(0, 6).toUpperCase() || '——';
+  const stampSvg = renderStampSvg(L.stamp_id || 'standard', { km: distKm, sealColor });
+  const titleHtml = L.title ? `<div class="stage-title">${escapeHtml(L.title)}</div>` : '';
 
   stage.innerHTML = `
     <div class="stage-envelope seal-${escapeAttr(sealColor)}" data-env="${escapeAttr(envStyle)}" id="stage-env">
       <div class="envelope-texture-overlay"></div>
       <div class="torn-edge"></div>
-      <div class="env-postmark" style="top:24px;left:24px;width:96px;height:96px;">
-        <div class="city">${escapeHtml(cityCode)}</div><div class="date">${shortDate(L.sent_at)}</div>
+      <div class="env-postmark" style="top:24px;left:24px;">
+        ${postmarkInner(cityCode, L.sent_at, distKm)}
       </div>
-      <div class="stage-stamp"><div class="km">${distKm}</div><div class="km-lbl">KM</div><div class="yr">${new Date(L.sent_at).getFullYear()}</div></div>
+      <div class="postage-stamp">${stampSvg}</div>
+      ${titleHtml}
       <div class="stage-from-meta"><span class="lbl">From</span>${escapeHtml(L.from_username)}<br><span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:0.85rem;color:var(--sepia);">${escapeHtml(L.from_location_name || '')}</span></div>
       <div class="stage-seal">${escapeHtml(sealText)}</div>
     </div>
@@ -157,6 +285,8 @@ async function openLetter(id) {
         L.opened = true;
         L.opened_at = new Date().toISOString();
       }
+      // 받은 쪽도 도전과제 검사
+      checkAchievementsBackground();
     }
 
     setTimeout(() => {
@@ -182,10 +312,12 @@ async function renderLetterContent(L) {
   }
 
   const paperStyle = L.paper_style || 'cream';
+  const titleHtml = L.title ? `<div class="lcp-title">${escapeHtml(L.title)}</div>` : '';
 
   stage.innerHTML = `
     <div class="letter-content-paper lcp" id="lcp" data-paper="${escapeAttr(paperStyle)}">
       <div class="paper-texture-overlay"></div>
+      ${titleHtml}
       <div class="lcp-header">
         <div class="lcp-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
         <div class="lcp-date">${longDate(L.sent_at)}</div>
@@ -207,6 +339,18 @@ async function renderLetterContent(L) {
   });
 
   renderAll();
+}
+
+// 보낸 편지 보기 — 봉투 단계 건너뛰고 바로 종이
+async function openSentLetter(id) {
+  const L = State.sent.find(x => x.id === id);
+  if (!L) return;
+  const stage = document.getElementById('letter-stage');
+  stage.innerHTML = '';
+  document.getElementById('letter-modal').classList.add('show');
+  // renderLetterContent는 .lcp 안에 paper-texture-overlay·header·body 등을 그리는데
+  // 보낸 편지의 경우 from은 본인이므로, 그대로 써도 의미 있음
+  await renderLetterContent(L);
 }
 
 document.getElementById('modal-close').addEventListener('click', () => {
@@ -262,6 +406,8 @@ async function checkRecipient() {
     recipientInfo.className = 'recipient-info ok';
   }
   updateComposeUi();
+  // 우표 미리보기에 거리 반영
+  if (typeof renderStampPicker === 'function') renderStampPicker();
 }
 
 function updateComposeUi() {
@@ -309,7 +455,7 @@ function renderImageStrip() {
 }
 
 // ───────────────────────────────────────────────────────────
-//  PAPER / ENVELOPE PICKERS
+//  PAPER / ENVELOPE PICKERS — 작성 영역 배경도 함께 변경
 // ───────────────────────────────────────────────────────────
 function renderPaperPicker() {
   const el = document.getElementById('paper-picker');
@@ -322,6 +468,9 @@ function renderPaperPicker() {
       State.composeStyle.paper = sw.dataset.paper;
       el.querySelectorAll('.paper-swatch').forEach(s => s.classList.remove('active'));
       sw.classList.add('active');
+      // 작성 영역 배경도 즉시 변경
+      const composePaper = document.getElementById('compose-paper');
+      if (composePaper) composePaper.dataset.paper = State.composeStyle.paper;
     });
   });
 }
@@ -338,6 +487,117 @@ function renderEnvelopePicker() {
       sw.classList.add('active');
     });
   });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STAMPS — 보유 우표 로드 / 선택 UI / 해금 알림
+// ═══════════════════════════════════════════════════════════
+async function loadMyStamps() {
+  // 1) 우표 카탈로그 (전체)
+  const { data: catalog, error: e1 } = await supa
+    .from('stamps')
+    .select('*')
+    .order('display_order', { ascending: true });
+  if (e1) { console.error(e1); return; }
+  State.stampCatalog = catalog || [];
+
+  // 2) 내가 보유한 우표
+  const { data: owned, error: e2 } = await supa
+    .from('user_stamps')
+    .select('stamp_id')
+    .eq('user_id', State.me.id);
+  if (e2) { console.error(e2); return; }
+  State.ownedStampIds = new Set((owned || []).map(r => r.stamp_id));
+}
+
+function renderStampPicker() {
+  const el = document.getElementById('stamp-picker');
+  if (!el || !State.stampCatalog) return;
+
+  // 보유한 우표만 선택지로 노출
+  const myStamps = State.stampCatalog.filter(s => State.ownedStampIds.has(s.id));
+  if (myStamps.length === 0) {
+    el.innerHTML = '<div style="font-family: \'Cormorant Garamond\', serif; font-style: italic; color: var(--sepia); font-size: 0.85rem;">보유한 우표가 없습니다</div>';
+    return;
+  }
+
+  // 활성 우표가 보유 목록에 없으면 standard로 폴백
+  if (!myStamps.find(s => s.id === State.composeStyle.stamp)) {
+    State.composeStyle.stamp = myStamps[0].id;
+  }
+
+  // 거리는 받는 사람이 정해진 상태에서만 의미 있음 — 미정이면 ?
+  const km = State.recipientCache ? Math.round(State.recipientCache.dist) : null;
+  const sealColor = State.me.seal_color || 'crimson';
+
+  el.innerHTML = myStamps.map(s => `
+    <div class="stamp-option seal-${escapeAttr(sealColor)} ${s.id === State.composeStyle.stamp ? 'active' : ''}"
+         data-stamp="${escapeAttr(s.id)}" title="${escapeHtml(s.name)}">
+      <div class="so-svg">${renderStampSvg(s.id, { km, sealColor })}</div>
+      <div class="so-name">${escapeHtml(s.name)}</div>
+    </div>
+  `).join('');
+
+  el.querySelectorAll('.stamp-option').forEach(node => {
+    node.addEventListener('click', () => {
+      State.composeStyle.stamp = node.dataset.stamp;
+      el.querySelectorAll('.stamp-option').forEach(n => n.classList.remove('active'));
+      node.classList.add('active');
+    });
+  });
+}
+
+function showStampUnlock(stampId) {
+  const stamp = (State.stampCatalog || []).find(s => s.id === stampId);
+  if (!stamp) return;
+  const km = null;
+  const sealColor = State.me.seal_color || 'crimson';
+  const modal = document.getElementById('unlock-modal');
+  document.getElementById('uc-stamp').className = 'uc-stamp seal-' + escapeAttr(sealColor);
+  document.getElementById('uc-stamp').innerHTML = renderStampSvg(stampId, { km, sealColor });
+  document.getElementById('uc-name').textContent = stamp.name;
+  document.getElementById('uc-desc').textContent = stamp.description;
+  modal.classList.add('show');
+}
+document.getElementById('uc-btn').addEventListener('click', () => {
+  document.getElementById('unlock-modal').classList.remove('show');
+});
+
+// 우표함 (프로필 모달 안의 컬렉션) 렌더 — auth.js 의 openProfileModal 에서 호출
+function renderCollection() {
+  const grid = document.getElementById('collection-grid');
+  const detail = document.getElementById('collection-detail');
+  if (!grid || !State.stampCatalog) return;
+  const km = null;
+  const sealColor = State.me.seal_color || 'crimson';
+
+  grid.innerHTML = State.stampCatalog.map(s => {
+    const owned = State.ownedStampIds.has(s.id);
+    const hidden = s.hidden && !owned;
+    if (hidden) {
+      return `<div class="collection-item locked" data-stamp="${escapeAttr(s.id)}" data-name="???" data-desc="아직 발견되지 않은 우표입니다."></div>`;
+    }
+    if (!owned) {
+      return `<div class="collection-item locked" data-stamp="${escapeAttr(s.id)}"
+                   data-name="${escapeAttr(s.name)}" data-desc="${escapeAttr(s.description)}">
+                <div class="ci-svg seal-${escapeAttr(sealColor)}">${renderStampSvg(s.id, { km, sealColor })}</div>
+              </div>`;
+    }
+    return `<div class="collection-item seal-${escapeAttr(sealColor)}" data-stamp="${escapeAttr(s.id)}"
+                 data-name="${escapeAttr(s.name)}" data-desc="${escapeAttr(s.description)}">
+              <div class="ci-svg">${renderStampSvg(s.id, { km, sealColor })}</div>
+            </div>`;
+  }).join('');
+
+  // 호버하면 아래 디테일에 설명
+  grid.querySelectorAll('.collection-item').forEach(node => {
+    node.addEventListener('mouseenter', () => {
+      const name = node.dataset.name;
+      const desc = node.dataset.desc;
+      detail.innerHTML = `<strong>${escapeHtml(name)}</strong> — ${escapeHtml(desc)}`;
+    });
+  });
+  grid.addEventListener('mouseleave', () => { detail.innerHTML = ''; });
 }
 
 // ───────────────────────────────────────────────────────────
@@ -411,10 +671,12 @@ function renderSent() {
     const init = (L.to_username || '?')[0].toUpperCase();
     const preview = (L.body || ((L.images || []).length ? '[사진 ' + L.images.length + '장]' : '')).slice(0, 60);
     const openedTxt = L.opened && L.opened_at ? ' · ' + shortDate(L.opened_at) + ' 읽음' : '';
+    const titleHtml = L.title ? `<div class="title-line">${escapeHtml(L.title)}</div>` : '';
     return `
-      <div class="sent-item ${statusClass}">
+      <div class="sent-item ${statusClass}" data-letter-id="${escapeAttr(L.id)}">
         <div class="icon-circ">${escapeHtml(init)}</div>
         <div class="meta">
+          ${titleHtml}
           <div class="to">${escapeHtml(L.to_username)} <span style="color:var(--sepia);font-weight:400;font-size:0.85rem;">· ${Math.round(L.distance)}km</span></div>
           <div class="preview">${escapeHtml(preview)}</div>
         </div>
@@ -424,21 +686,112 @@ function renderSent() {
         </div>
       </div>`;
   }).join('');
+
+  // 클릭 시 본문 보기
+  list.querySelectorAll('.sent-item[data-letter-id]').forEach(node => {
+    node.addEventListener('click', () => openSentLetter(node.dataset.letterId));
+  });
 }
 
 // ───────────────────────────────────────────────────────────
 //  SEND
 // ───────────────────────────────────────────────────────────
-sendBtn.addEventListener('click', sendLetter);
+// ═══════════════════════════════════════════════════════════
+//  SEND — 두 단계: (1) 봉투화 시퀀스로 보여주기 (2) 확인 후 실제 발송
+// ═══════════════════════════════════════════════════════════
+sendBtn.addEventListener('click', startSealSequence);
 
-async function sendLetter() {
+function startSealSequence() {
+  if (!State.recipientCache) return;
+  const bodyText = (letterBody.innerText || '').trim();
+  if (!bodyText && State.composeImages.length === 0) return;
+
+  const fp = document.getElementById('fold-paper');
+  const envWrap = document.getElementById('seal-env-wrap');
+  const env = document.getElementById('seal-envelope');
+  const impactSeal = document.getElementById('impact-seal');
+  const confirm = document.getElementById('seal-confirm');
+  const meta = document.getElementById('sc-meta');
+
+  // 초기 상태 리셋
+  fp.classList.remove('fold-1', 'fold-2');
+  fp.style.opacity = '1';
+  fp.dataset.paper = State.composeStyle.paper;
+  envWrap.classList.remove('show');
+  env.classList.remove('flap-closed', 'sealed', 'flying');
+  env.dataset.env = State.composeStyle.envelope;
+  // 인장 색
+  env.className = 'seal-envelope seal-' + escapeAttr(State.me.seal_color || 'crimson');
+  // 인장 심볼
+  const sym = (State.me.seal_symbol && State.me.seal_symbol.length)
+              ? State.me.seal_symbol : (State.me.username || '?')[0].toUpperCase();
+  impactSeal.textContent = sym;
+  confirm.classList.remove('show');
+
+  // 미리보기 본문 (글자 수 제한)
+  const previewText = (bodyText || '').slice(0, 200);
+  fp.textContent = previewText || '(사진만 첨부)';
+
+  // 메타 텍스트
+  const dist = State.recipientCache.dist;
+  const ms = State.recipientCache.ms;
+  meta.innerHTML = `<strong>${escapeHtml(State.recipientCache.profile.username)}</strong>님께 · ${Math.round(dist)} km · 도착까지 약 ${escapeHtml(formatDuration(ms))}`;
+
+  // 모달 띄우기
+  document.getElementById('seal-modal').classList.add('show');
+
+  // 시퀀스 진행
+  setTimeout(() => fp.classList.add('fold-1'), 200);
+  setTimeout(() => fp.classList.add('fold-2'), 700);
+  setTimeout(() => {
+    fp.style.opacity = '0';
+    envWrap.classList.add('show');
+  }, 1200);
+  setTimeout(() => {
+    env.classList.add('flap-closed');
+  }, 1500);
+  setTimeout(() => {
+    env.classList.add('sealed');
+  }, 2200);
+  setTimeout(() => {
+    confirm.classList.add('show');
+  }, 2700);
+}
+
+document.getElementById('sc-cancel').addEventListener('click', () => {
+  document.getElementById('seal-modal').classList.remove('show');
+});
+document.getElementById('seal-modal').addEventListener('click', e => {
+  if (e.target.id === 'seal-modal') {
+    // 클릭으로 닫기는 막기 — 사용자가 의도치 않게 취소되는 걸 방지
+  }
+});
+
+document.getElementById('sc-confirm').addEventListener('click', async () => {
+  // 봉투 날아가는 애니메이션 후 실제 발송
+  const env = document.getElementById('seal-envelope');
+  const confirm = document.getElementById('seal-confirm');
+  confirm.classList.remove('show');
+  env.classList.add('flying');
+  // 발송 자체는 애니메이션과 병행
+  const sendPromise = doSendLetter();
+  setTimeout(async () => {
+    document.getElementById('seal-modal').classList.remove('show');
+    try {
+      await sendPromise;
+    } catch (err) {
+      // doSendLetter 내부에서 toast 처리됨
+    }
+  }, 1200);
+});
+
+async function doSendLetter() {
   if (!State.recipientCache) return;
   const bodyText = (letterBody.innerText || '').trim();
   const bodyHtmlRaw = letterBody.innerHTML;
   if (!bodyText && State.composeImages.length === 0) return;
 
-  sendBtn.disabled = true;
-  sendBtn.textContent = '발송 중…';
+  const titleVal = (document.getElementById('letter-title-input').value || '').trim().slice(0, 60);
 
   try {
     const letterId = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2));
@@ -467,6 +820,7 @@ async function sendLetter() {
       from_lng: State.me.lng,
       to_user: State.recipientCache.profile.id,
       to_username: State.recipientCache.profile.username,
+      title: titleVal,
       body: bodyText,
       body_html: safeBodyHtml,
       images: imagePaths,
@@ -475,25 +829,27 @@ async function sendLetter() {
       deliver_at: new Date(now + ms).toISOString(),
       paper_style: State.composeStyle.paper,
       envelope_style: State.composeStyle.envelope,
+      stamp_id: State.composeStyle.stamp || 'standard',
       seal_color: State.me.seal_color || 'crimson',
       seal_symbol: State.me.seal_symbol || ''
     });
     if (error) throw error;
 
+    // 폼 리셋
     letterBody.innerHTML = '';
+    document.getElementById('letter-title-input').value = '';
     State.composeImages = [];
     renderImageStrip();
     showToast(`✈ ${State.recipientCache.profile.username}님에게 편지를 보냈어요 (${formatDuration(ms)} 후 도착)`);
-    sendBtn.disabled = false;
-    sendBtn.textContent = '편지 보내기';
 
     await loadSent();
     renderAll();
     document.querySelector('.tab[data-tab="sent"]').click();
+
+    // 도전과제 검사
+    checkAchievementsBackground();
   } catch (err) {
     console.error(err);
     showToast('편지를 보내지 못했습니다: ' + (err.message || ''));
-    sendBtn.disabled = false;
-    sendBtn.textContent = '편지 보내기';
   }
 }

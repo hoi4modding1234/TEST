@@ -211,7 +211,7 @@
 
   <!-- ─── COMPOSE PANEL ─── -->
   <section class="panel" id="panel-compose">
-    <div class="compose-paper">
+    <div class="compose-paper" id="compose-paper" data-paper="cream">
       <h2>편지 쓰기 <em>Write a Letter</em></h2>
       <div class="date-line" id="compose-date"></div>
 
@@ -221,6 +221,10 @@
           <input id="recipient-input" type="text" placeholder="받는 사람의 이름" autocomplete="off">
           <div class="recipient-info" id="recipient-info"></div>
         </div>
+      </div>
+
+      <div class="title-field">
+        <input id="letter-title-input" type="text" placeholder="편지 제목 (선택, 한 줄)" maxlength="60" autocomplete="off">
       </div>
 
       <div class="editor-toolbar">
@@ -262,6 +266,13 @@
           <div class="lbl">봉투</div>
           <div class="pm-grid-paper" id="env-picker"></div>
         </div>
+      </div>
+
+      <div class="stamp-picker-section">
+        <div class="lbl" style="font-family: 'Gowun Batang', serif; font-size: 0.85rem; color: var(--sepia); letter-spacing: 0.05em;">
+          <span style="color: var(--gold-deep);">— </span>붙일 우표<span style="color: var(--gold-deep);"> —</span>
+        </div>
+        <div class="stamp-picker-grid" id="stamp-picker"></div>
       </div>
 
       <div class="compose-actions">
@@ -409,6 +420,21 @@
       </div>
     </div>
 
+    <!-- ─── 우표함 ─── -->
+    <div class="acc-group" id="acc-collection">
+      <button class="acc-head" type="button" data-acc="collection">
+        <span>우표함 <em style="font-family: 'Cormorant Garamond', serif; font-style: italic; color: var(--gold-deep); font-size: 0.8em; font-weight: 500;">Collection</em></span>
+        <span class="chev">›</span>
+      </button>
+      <div class="acc-body">
+        <p class="acc-msg info" style="margin-bottom: 8px;">
+          <span>해금한 우표는 편지를 보낼 때 골라서 붙일 수 있어요. 잠긴 우표는 ?로 표시됩니다.</span>
+        </p>
+        <div class="collection-grid" id="collection-grid"></div>
+        <div id="collection-detail" style="font-family: 'Gowun Dodum', sans-serif; font-size: 0.85rem; color: var(--ink-soft); margin-top: 12px; min-height: 40px;"></div>
+      </div>
+    </div>
+
     <!-- ─── 알림 설정 ─── -->
     <div class="acc-group" id="acc-notif">
       <button class="acc-head" type="button" data-acc="notif">
@@ -501,9 +527,41 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ═════════ SEAL/SEND SEQUENCE MODAL ═════════ -->
+<div class="seal-modal" id="seal-modal">
+  <div class="seal-stage" id="seal-stage">
+    <div class="fold-paper" id="fold-paper" data-paper="cream"></div>
+    <div class="seal-envelope-wrap" id="seal-env-wrap">
+      <div class="seal-envelope seal-crimson" id="seal-envelope" data-env="cream">
+        <div class="seal-flap"></div>
+        <div class="impact-seal" id="impact-seal">A</div>
+      </div>
+    </div>
+    <div class="seal-confirm" id="seal-confirm">
+      <div class="sc-q">이 편지를 보내시겠습니까?</div>
+      <div class="sc-meta" id="sc-meta">— —</div>
+      <div class="sc-actions">
+        <button class="sc-btn" id="sc-cancel" type="button">다시 쓰기</button>
+        <button class="sc-btn primary" id="sc-confirm" type="button">보내기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════ STAMP UNLOCK MODAL ═════════ -->
+<div class="unlock-modal" id="unlock-modal">
+  <div class="unlock-card">
+    <div class="uc-eyebrow">새 우표 해금</div>
+    <div class="uc-stamp" id="uc-stamp"></div>
+    <div class="uc-name" id="uc-name">—</div>
+    <div class="uc-desc" id="uc-desc">—</div>
+    <button class="uc-btn" id="uc-btn" type="button">고마워요</button>
+  </div>
+</div>
 
 <script src="config.js"></script>
 <script src="app.js"></script>
+<script src="stamps.js"></script>
 <script src="auth.js"></script>
 <script src="letters.js"></script>
 <script src="main.js"></script>

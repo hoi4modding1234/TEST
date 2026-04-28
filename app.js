@@ -22,17 +22,20 @@ const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 //  GLOBAL STATE
 // ═══════════════════════════════════════════════════════════
 const State = {
-  user: null,             // auth user (id, email)
-  me: null,               // profile row
-  letters: [],            // received letters where deliver_at <= now
-  sent: [],               // letters we sent
-  composeImages: [],      // [{ blob, dataUrl }]
-  composeStyle: { paper: 'cream', envelope: 'cream' },
+  user: null,
+  me: null,
+  letters: [],            // picked-up arrived letters
+  pendingCount: 0,        // arrived but not yet picked up
+  sent: [],
+  composeImages: [],
+  composeStyle: { paper: 'cream', envelope: 'cream', stamp: 'standard' },
   recipientCache: null,
   refreshTimer: null,
   authMode: 'signin',
   notifEnabled: false,
-  seenLetterIds: new Set()  // for notification dedup
+  seenLetterIds: new Set(),
+  stampCatalog: [],        // [{id, name, description, hidden, display_order}]
+  ownedStampIds: new Set() // Set of stamp ids the user owns
 };
 
 // ═══════════════════════════════════════════════════════════

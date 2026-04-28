@@ -26,19 +26,30 @@ async function launchApp() {
 
   State.composeStyle.paper    = State.me.paper_default    || 'cream';
   State.composeStyle.envelope = State.me.envelope_default || 'cream';
+  State.composeStyle.stamp    = 'standard';
+
+  // 작성 영역 배경에도 기본 편지지 적용
+  const composePaper = document.getElementById('compose-paper');
+  if (composePaper) composePaper.dataset.paper = State.composeStyle.paper;
+
+  await loadMyStamps();
 
   renderPaperPicker();
   renderEnvelopePicker();
+  renderStampPicker();
 
-  await Promise.all([loadMailbox(), loadSent()]);
+  await Promise.all([loadMailbox(), loadSent(), loadPendingCount()]);
   renderAll();
   startAutoRefresh();
+
+  // 첫 진입 시 도전과제 한 번 체크 (기존 사용자에게 누락된 우표 회수)
+  checkAchievementsBackground();
 }
 
 function startAutoRefresh() {
   if (State.refreshTimer) clearInterval(State.refreshTimer);
   State.refreshTimer = setInterval(async () => {
-    await Promise.all([loadMailbox(), loadSent()]);
+    await Promise.all([loadMailbox(), loadSent(), loadPendingCount()]);
     renderAll();
   }, 20000);
 }
