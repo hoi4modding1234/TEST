@@ -20,12 +20,29 @@ State.composePin = {             // 핀 작성 중 상태
 // ═══════════════════════════════════════════════════════════
 function initMap() {
   if (State.mapInitialized) {
-    // 탭 전환 후 leaflet 이 컨테이너 크기를 잘못 측정할 수 있어서 invalidateSize 호출
-    setTimeout(() => { if (State.map) State.map.invalidateSize(); }, 100);
+    // 탭 전환 후 컨테이너 크기가 바뀌었을 수 있으므로 여러 번 invalidate
+    if (State.map) {
+      requestAnimationFrame(() => State.map.invalidateSize());
+      setTimeout(() => State.map.invalidateSize(), 100);
+      setTimeout(() => State.map.invalidateSize(), 400);
+    }
     return;
   }
 
-  // 사용자 위치를 중심으로 시작
+  // 컨테이너가 실제로 화면에 보이고 크기가 측정 가능한 시점까지 기다림
+  const el = document.getElementById('leaflet-map');
+  if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) {
+    // 아직 panel.active 가 적용되지 않음 — 다음 프레임에 재시도
+    requestAnimationFrame(initMap);
+    return;
+  }
+
+  if (typeof L === 'undefined') {
+    console.error('Leaflet not loaded');
+    showToast('지도 라이브러리를 불러오지 못했어요. 새로고침 해주세요.');
+    return;
+  }
+
   const startLat = State.me?.lat || 37.5665;
   const startLng = State.me?.lng || 126.9780;
 
@@ -44,10 +61,13 @@ function initMap() {
   State.map = map;
   State.mapInitialized = true;
 
-  // 롱프레스 핀 꽂기 — 마우스(데스크탑) + 터치(모바일)
   setupLongPress(map);
 
-  // 초기 힌트 페이드 — 5초 후
+  // 첫 렌더 후 크기 재측정 보강 — Leaflet 의 흔한 함정
+  setTimeout(() => map.invalidateSize(), 100);
+  setTimeout(() => map.invalidateSize(), 500);
+
+  // 초기 힌트 페이드
   setTimeout(() => {
     const hint = document.getElementById('map-hint');
     if (hint) hint.classList.add('fade');

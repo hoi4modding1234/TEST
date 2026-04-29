@@ -3223,7 +3223,7 @@
   position: relative;
   width: 100%;
   height: 600px;
-  background: var(--paper-deep);
+  background: #e8d6a8;
   border: 1px solid var(--sepia);
   box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px var(--sepia-soft), 0 12px 30px rgba(45, 36, 25, 0.3);
   margin-bottom: 24px;
@@ -3233,7 +3233,10 @@
   width: 100%;
   height: 100%;
   background: #e8d6a8;
-  /* 양피지 톤 — sepia + 약간 누런 채도 */
+}
+
+/* sepia 필터는 타일 이미지에만 적용 — 컨트롤·마커·팝업은 영향 안 받음 */
+.map-container .leaflet-tile-pane {
   filter: sepia(0.45) saturate(0.85) hue-rotate(-8deg) brightness(0.96) contrast(1.05);
 }
 
