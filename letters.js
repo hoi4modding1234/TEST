@@ -68,6 +68,12 @@ async function pickupLetters() {
     renderFriendBadge();
   }
 
+  // 지도 우체통 갱신
+  if (State.mapInitialized && typeof buildPostboxes === 'function') {
+    buildPostboxes();
+    renderPostboxes();
+  }
+
   checkAchievementsBackground();
 }
 
@@ -940,6 +946,12 @@ async function doSendLetter() {
     await Promise.all([loadSent(), loadPendingRequests()]);
     renderAll();
     document.querySelector('.tab[data-tab="sent"]').click();
+
+    // 지도 우체통 갱신 (보낸 위치에 우체통 추가됨)
+    if (State.mapInitialized && typeof buildPostboxes === 'function') {
+      buildPostboxes();
+      renderPostboxes();
+    }
 
     checkAchievementsBackground();
   } catch (err) {

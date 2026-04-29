@@ -25,6 +25,10 @@ document.querySelectorAll('.tab').forEach(t => {
         initMap();
         await loadPins();
         renderPins();
+        if (typeof buildPostboxes === 'function') {
+          buildPostboxes();
+          renderPostboxes();
+        }
       }
     }
   });
@@ -84,6 +88,11 @@ function startAutoRefresh() {
     renderAll();
     renderPendingFriendBar();
     renderFriendBadge();
+    // 지도가 이미 초기화돼 있으면 우체통도 갱신
+    if (State.mapInitialized && typeof buildPostboxes === 'function') {
+      buildPostboxes();
+      renderPostboxes();
+    }
   }, 20000);
 }
 

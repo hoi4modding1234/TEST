@@ -333,6 +333,7 @@
         <button data-filter="mine" class="active" type="button">내 핀</button>
         <button data-filter="friends" type="button">친구</button>
         <button data-filter="all" type="button">모두</button>
+        <button data-postbox-toggle id="postbox-toggle" class="active" type="button" title="우체통 표시">📮</button>
       </div>
       <div class="map-tools">
         <button class="map-tool" id="map-locate" title="현재 위치로" type="button">📍</button>
@@ -661,6 +662,16 @@
     <div class="pin-view-message" id="pin-view-message"></div>
     <div class="pin-coord" id="pin-view-coord" style="margin-top: 14px;">—</div>
     <div class="pin-actions" id="pin-view-actions"></div>
+  </div>
+</div>
+
+<!-- ═════════ POSTBOX MODAL ═════════ -->
+<div class="pin-modal" id="postbox-modal">
+  <div class="pin-card" style="max-width: 520px;">
+    <button class="pin-close" id="postbox-close" type="button">✕</button>
+    <h3>우체통 <em>Postbox</em></h3>
+    <div class="pin-coord" id="postbox-coord">—</div>
+    <div id="postbox-list" style="max-height: 60vh; overflow-y: auto; margin-top: 14px;"></div>
   </div>
 </div>
 

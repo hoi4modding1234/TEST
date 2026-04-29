@@ -15,6 +15,28 @@ State.composePin = {             // 핀 작성 중 상태
   editingId: null                 // 편집 중인 핀 id (null이면 신규)
 };
 
+// ─── 우체통 (postbox) 시스템 ───
+State.postboxes = [];            // [{ key, lat, lng, letters: [...] }]
+State.postboxMarkers = new Map();// key → leaflet marker
+State.postboxesVisible = true;   // 우체통 토글 상태
+const POSTBOX_GRID = 0.01;       // 격자 크기 (~1km, 동네 단위)
+
+function postboxKey(lat, lng) {
+  // 격자에 스냅 — 같은 격자 안의 좌표는 같은 key를 가짐
+  const gx = Math.floor(lat / POSTBOX_GRID);
+  const gy = Math.floor(lng / POSTBOX_GRID);
+  return `${gx}:${gy}`;
+}
+
+function postboxCenter(key) {
+  // 격자의 중심 좌표 반환 (마커 위치용)
+  const [gx, gy] = key.split(':').map(Number);
+  return {
+    lat: (gx + 0.5) * POSTBOX_GRID,
+    lng: (gy + 0.5) * POSTBOX_GRID
+  };
+}
+
 // ═══════════════════════════════════════════════════════════
 //  지도 초기화
 // ═══════════════════════════════════════════════════════════
@@ -558,3 +580,186 @@ async function deletePin(pin) {
     showToast('삭제 실패: ' + (err.message || ''));
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+//  우체통 (Postbox) — 편지 발신/수신 지점 시각화
+// ═══════════════════════════════════════════════════════════
+
+// 우체통 토글
+document.getElementById('postbox-toggle').addEventListener('click', () => {
+  State.postboxesVisible = !State.postboxesVisible;
+  const btn = document.getElementById('postbox-toggle');
+  btn.classList.toggle('active', State.postboxesVisible);
+  renderPostboxes();
+});
+
+// 편지를 격자별로 그룹핑
+function buildPostboxes() {
+  // 사용자가 받은 편지 + 보낸 편지 모두 — 발신자의 좌표(from_lat/lng) 기준
+  // 받은 편지: 상대방이 보낸 곳 → 그쪽 도시에 우체통
+  // 보낸 편지: 본인이 보낸 곳(=내 출발지) → 내 위치에 우체통
+  // 둘 다 from_lat/from_lng 가 발신지라 동일 컬럼 사용
+  const all = [
+    ...State.letters.map(l => ({ ...l, _direction: 'received' })),
+    ...State.sent.map(l => ({ ...l, _direction: 'sent' }))
+  ];
+
+  const groups = new Map();
+  for (const L of all) {
+    if (L.from_lat == null || L.from_lng == null) continue;
+    const key = postboxKey(L.from_lat, L.from_lng);
+    if (!groups.has(key)) {
+      const center = postboxCenter(key);
+      groups.set(key, { key, lat: center.lat, lng: center.lng, letters: [] });
+    }
+    groups.get(key).letters.push(L);
+  }
+
+  // 시간순 정렬 — 각 우체통 안의 편지를 최신순으로
+  for (const pb of groups.values()) {
+    pb.letters.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
+  }
+
+  State.postboxes = Array.from(groups.values());
+}
+
+function renderPostboxes() {
+  if (!State.map) return;
+
+  // 기존 마커 제거
+  for (const marker of State.postboxMarkers.values()) marker.remove();
+  State.postboxMarkers.clear();
+
+  if (!State.postboxesVisible) return;
+
+  for (const pb of State.postboxes) {
+    addPostboxMarker(pb);
+  }
+}
+
+function addPostboxMarker(pb) {
+  const count = pb.letters.length;
+  const html = postboxSvg(count);
+  const icon = L.divIcon({
+    className: 'postbox-icon-wrap',
+    html,
+    iconSize: [36, 48],
+    iconAnchor: [18, 44]  // 우체통 발 부분이 좌표를 가리키도록
+  });
+  const marker = L.marker([pb.lat, pb.lng], { icon, riseOnHover: true, zIndexOffset: 1000 });
+  marker.on('click', () => openPostboxModal(pb.key));
+  marker.addTo(State.map);
+  State.postboxMarkers.set(pb.key, marker);
+}
+
+function postboxSvg(count) {
+  // 영국식 빨간 원기둥 우체통 — 단순화된 미니어처
+  return `
+    <div class="postbox-marker" title="${count}통의 편지">
+      <svg viewBox="0 0 36 48" xmlns="http://www.w3.org/2000/svg">
+        <!-- 본체 -->
+        <rect x="6" y="14" width="24" height="30" rx="3" ry="2" fill="#b03050" stroke="#5a0d0d" stroke-width="0.8"/>
+        <!-- 윗부분 (반원형 모자) -->
+        <path d="M 6 14 Q 6 6, 18 6 Q 30 6, 30 14 Z" fill="#c44060" stroke="#5a0d0d" stroke-width="0.8"/>
+        <!-- 모자 위 작은 윤곽선 (장식) -->
+        <ellipse cx="18" cy="13" rx="11" ry="1.2" fill="none" stroke="#7a1828" stroke-width="0.5" opacity="0.5"/>
+        <!-- 편지 투입구 -->
+        <rect x="11" y="18" width="14" height="2.2" rx="1" fill="#3a0a14" stroke="#1a0408" stroke-width="0.4"/>
+        <!-- ROYAL MAIL 라벨 (단순화) -->
+        <rect x="9" y="26" width="18" height="6" fill="#fff5d4" stroke="#5a0d0d" stroke-width="0.4" opacity="0.85"/>
+        <text x="18" y="30" text-anchor="middle" font-family="Cormorant Garamond, serif"
+              font-size="2.6" font-weight="600" fill="#5a0d0d" letter-spacing="0.3">SLOW MAIL</text>
+        <!-- 받침대 -->
+        <rect x="3" y="43" width="30" height="3" fill="#3a2010" stroke="#1f0f08" stroke-width="0.4"/>
+        <!-- 본체 빛 반사 -->
+        <rect x="8" y="16" width="2" height="26" fill="#d4607a" opacity="0.5"/>
+      </svg>
+      <div class="pb-count">${count}</div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  우체통 모달 — 편지 목록
+// ═══════════════════════════════════════════════════════════
+const postboxModal = document.getElementById('postbox-modal');
+
+function openPostboxModal(key) {
+  const pb = State.postboxes.find(p => p.key === key);
+  if (!pb) return;
+
+  document.getElementById('postbox-coord').textContent =
+    `${pb.lat.toFixed(4)}, ${pb.lng.toFixed(4)} · ${pb.letters.length}통`;
+
+  const list = document.getElementById('postbox-list');
+  const now = Date.now();
+  list.innerHTML = pb.letters.map(L => {
+    const isReceived = L._direction === 'received';
+    const deliverAt = new Date(L.deliver_at).getTime();
+    const isInTransit = deliverAt > now;
+    const direction = isReceived ? '받은 편지' : (isInTransit ? '배송 중' : '보낸 편지');
+    const cls = isReceived ? 'received' : (isInTransit ? 'transit' : 'sent');
+    const otherName = isReceived ? L.from_username : L.to_username;
+    const initial = (otherName || '?')[0].toUpperCase();
+    const sealColor = isReceived ? (L.seal_color || 'crimson') : (State.me.seal_color || 'crimson');
+    const colors = sealColorVars(sealColor);
+
+    let dateStatus;
+    if (isInTransit) {
+      dateStatus = `<span class="status transit">${formatTimeRemaining(deliverAt - now)} 도착</span>`;
+    } else if (isReceived) {
+      dateStatus = L.opened ? '<span class="status opened">읽음</span>' : '<span class="status">미열람</span>';
+    } else {
+      dateStatus = L.opened ? '<span class="status opened">상대가 읽음</span>' : '<span class="status">도착함</span>';
+    }
+
+    const titleText = L.title || (L.body ? L.body.slice(0, 50) : '(제목 없음)');
+
+    return `
+      <div class="postbox-letter-row ${cls}" data-letter-id="${escapeAttr(L.id)}" data-direction="${L._direction}">
+        <div class="pblr-icon" style="background: radial-gradient(circle at 35% 35%, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%);">${escapeHtml(initial)}</div>
+        <div class="pblr-meta">
+          <div class="pblr-direction">${direction}</div>
+          <div class="pblr-title">${escapeHtml(titleText)}</div>
+          <div class="pblr-sub">${isReceived ? 'From' : 'To'} ${escapeHtml(otherName || '—')}</div>
+        </div>
+        <div class="pblr-date">
+          ${shortDate(L.sent_at)}
+          ${dateStatus}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 행 클릭 → 적절한 편지 모달 열기
+  list.querySelectorAll('.postbox-letter-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = row.dataset.letterId;
+      const dir = row.dataset.direction;
+      postboxModal.classList.remove('show');
+
+      if (dir === 'received') {
+        // 받은 편지 — 봉투 뜯기 단계는 이미 가져갔으면 건너뛰고 바로 본문으로
+        const L = State.letters.find(x => x.id === id);
+        if (!L) {
+          showToast('편지를 찾을 수 없어요. 우편함을 먼저 확인해주세요.');
+          return;
+        }
+        // 일반 흐름과 동일하게 처리 (봉투 → 종이)
+        openLetter(id);
+      } else {
+        // 보낸 편지 — openSentLetter 사용
+        openSentLetter(id);
+      }
+    });
+  });
+
+  postboxModal.classList.add('show');
+}
+
+document.getElementById('postbox-close').addEventListener('click', () => {
+  postboxModal.classList.remove('show');
+});
+postboxModal.addEventListener('click', e => {
+  if (e.target === postboxModal) postboxModal.classList.remove('show');
+});

@@ -454,6 +454,11 @@ async function trashLetter(letterId) {
   if (document.querySelector('.tab[data-tab="trash"]').classList.contains('active')) {
     renderTrashPanel();
   }
+  // 지도 우체통 갱신
+  if (State.mapInitialized && typeof buildPostboxes === 'function') {
+    buildPostboxes();
+    renderPostboxes();
+  }
   return true;
 }
 
