@@ -3213,3 +3213,469 @@
 }
 .pending-friend-bar .pfb-action:hover { background: #8b1e3e; }
 
+
+/* ═══════════════════════════════════════════════════════════
+   v8: 지도 핀 시스템
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 지도 컨테이너 ─── */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  background: var(--paper-deep);
+  border: 1px solid var(--sepia);
+  box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px var(--sepia-soft), 0 12px 30px rgba(45, 36, 25, 0.3);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.map-container .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #e8d6a8;
+  /* 양피지 톤 — sepia + 약간 누런 채도 */
+  filter: sepia(0.45) saturate(0.85) hue-rotate(-8deg) brightness(0.96) contrast(1.05);
+}
+
+/* Leaflet 기본 컨트롤들의 위치/스타일 — 우편 미학에 맞게 */
+.map-container .leaflet-control-zoom a {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--sepia-soft) !important;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+}
+.map-container .leaflet-control-zoom a:hover {
+  background: var(--ink) !important;
+  color: var(--paper) !important;
+}
+.map-container .leaflet-control-attribution {
+  background: rgba(243, 232, 208, 0.85) !important;
+  font-family: 'Cormorant Garamond', serif !important;
+  font-style: italic;
+  font-size: 0.7rem !important;
+  color: var(--sepia) !important;
+}
+.map-container .leaflet-control-attribution a {
+  color: var(--wax) !important;
+}
+
+/* ─── 우상단 컨트롤 (GPS, 필터) ─── */
+.map-tools {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.map-tool {
+  background: var(--paper);
+  border: 1px solid var(--sepia);
+  color: var(--ink);
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  box-shadow: 0 2px 6px rgba(45, 36, 25, 0.25);
+  transition: all 0.15s;
+}
+.map-tool:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.map-tool.active {
+  background: var(--wax);
+  color: var(--paper);
+  border-color: var(--wax);
+}
+
+/* ─── 시야 토글 (내 핀 / 친구 / 모두) ─── */
+.map-filter {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 500;
+  display: flex;
+  background: var(--paper);
+  border: 1px solid var(--sepia);
+  box-shadow: 0 2px 6px rgba(45, 36, 25, 0.25);
+}
+.map-filter button {
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--sepia-soft);
+  padding: 8px 14px;
+  font-family: 'Gowun Batang', serif;
+  font-size: 0.82rem;
+  color: var(--sepia);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: all 0.15s;
+}
+.map-filter button:last-child { border-right: none; }
+.map-filter button:hover { color: var(--ink); }
+.map-filter button.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ─── 안내 (롱프레스 힌트) ─── */
+.map-hint {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(45, 36, 25, 0.85);
+  color: var(--paper);
+  padding: 8px 16px;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  border-radius: 2px;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.map-hint.fade { opacity: 0; }
+
+/* 롱프레스 진행 표시 */
+.map-longpress-indicator {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  margin-left: -25px;
+  margin-top: -25px;
+  border-radius: 50%;
+  border: 2px solid var(--wax);
+  background: rgba(139, 30, 30, 0.15);
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.1s, transform 0.6s linear;
+}
+.map-longpress-indicator.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ─── 핀 (밀랍 봉인) ─── */
+.pin-marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.pin-marker:hover {
+  transform: scale(1.25);
+  z-index: 1001 !important;
+}
+.pin-marker .pin-disc {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--scl, var(--seal-crimson-l)) 0%, var(--sc, var(--seal-crimson)) 50%, var(--scd, var(--seal-crimson-d)) 100%);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.4),
+    inset 0 -1px 2px rgba(0,0,0,0.3),
+    inset 0 1px 2px rgba(255,255,255,0.25);
+  position: relative;
+}
+.pin-marker .pin-disc::before {
+  /* 밀랍이 종이에 살짝 번진 듯한 후광 */
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: radial-gradient(circle, var(--sc, var(--seal-crimson)) 0%, transparent 70%);
+  border-radius: 50%;
+  opacity: 0.35;
+  z-index: -1;
+  filter: blur(2px);
+}
+.pin-marker.has-image .pin-disc::after {
+  /* 사진 첨부 표시 — 작은 점 */
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 248, 212, 0.95);
+  box-shadow: 0 1px 1px rgba(0,0,0,0.3);
+}
+
+/* 빛바램 단계 — 1개월 미만(선명) / 6개월(약간) / 1년(많이) / 2년+(거의 그림자) */
+.pin-marker.fade-1 { filter: saturate(0.7) brightness(0.95); opacity: 0.85; }
+.pin-marker.fade-2 { filter: saturate(0.45) brightness(0.85); opacity: 0.65; }
+.pin-marker.fade-3 { filter: saturate(0.2)  brightness(0.7)  contrast(0.85); opacity: 0.45; }
+.pin-marker:hover {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* 본인 핀 — 약간 다른 톤 (테두리 강조) */
+.pin-marker.mine .pin-disc {
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.4),
+    0 0 0 1.5px rgba(255, 248, 212, 0.7),
+    inset 0 -1px 2px rgba(0,0,0,0.3),
+    inset 0 1px 2px rgba(255,255,255,0.25);
+}
+
+/* ─── 핀 작성/보기 모달 ─── */
+.pin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(45, 36, 25, 0.65);
+  backdrop-filter: blur(6px);
+}
+.pin-modal.show { display: flex; animation: fadeIn 0.3s; }
+
+.pin-card {
+  background: linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
+  width: 100%;
+  max-width: 480px;
+  padding: 32px 32px 26px;
+  border: 1px solid var(--sepia);
+  box-shadow:
+    0 0 0 6px var(--paper),
+    0 0 0 7px var(--sepia-soft),
+    0 30px 60px rgba(0,0,0,0.4);
+  position: relative;
+}
+.pin-card .pin-close {
+  position: absolute;
+  top: 14px; right: 18px;
+  background: transparent;
+  border: 1px solid var(--sepia-soft);
+  color: var(--sepia);
+  width: 32px; height: 32px;
+  cursor: pointer;
+  font-family: 'Cormorant Garamond', serif;
+}
+.pin-card h3 {
+  font-family: 'Gowun Batang', serif;
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+}
+.pin-card h3 em {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  color: var(--gold-deep);
+  font-size: 0.7em;
+  font-weight: 500;
+}
+.pin-card .pin-coord {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--sepia);
+  margin-bottom: 18px;
+}
+.pin-card .pin-coord::before { content: '⌖ '; }
+
+.pin-image-area {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px dashed var(--sepia-soft);
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.pin-image-area .pin-image-hint {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  color: var(--sepia);
+  text-align: center;
+  font-size: 0.95rem;
+}
+.pin-image-area .pin-image-hint::before { content: '📷  '; }
+.pin-image-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pin-image-area .pin-image-remove {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 26px; height: 26px;
+  background: var(--wax);
+  color: var(--paper);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.pin-message {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--sepia-soft);
+  padding: 10px 12px;
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 1.15rem;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+.pin-message:focus { outline: none; border-color: var(--wax); }
+.pin-message::placeholder { color: var(--sepia); opacity: 0.55; font-style: italic; }
+.pin-message-count {
+  text-align: right;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--sepia);
+  margin-top: 4px;
+}
+
+.pin-visibility {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--sepia-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.pin-visibility .label-block .t {
+  font-family: 'Gowun Batang', serif;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.pin-visibility .label-block .d {
+  font-family: 'Gowun Dodum', sans-serif;
+  font-size: 0.75rem;
+  color: var(--sepia);
+  margin-top: 2px;
+}
+
+.pin-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  border-top: 1px dashed var(--sepia-soft);
+  padding-top: 18px;
+}
+.pin-btn {
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  padding: 10px 22px;
+  font-family: 'Gowun Batang', serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pin-btn:hover { background: var(--wax); }
+.pin-btn.primary { background: var(--wax); }
+.pin-btn.primary:hover { background: var(--wax-deep); }
+.pin-btn.secondary {
+  background: transparent;
+  color: var(--sepia);
+  border: 1px solid var(--sepia-soft);
+}
+.pin-btn.secondary:hover {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.pin-btn.danger {
+  background: transparent;
+  color: var(--wax);
+  border: 1px solid var(--wax);
+  margin-right: auto;
+}
+.pin-btn.danger:hover { background: var(--wax); color: var(--paper); }
+
+/* ─── 핀 보기 (다른 사람 핀) ─── */
+.pin-view-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--sepia-soft);
+}
+.pin-view-author .pva-seal {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: rgba(255, 230, 200, 0.85);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 -1px 2px rgba(0,0,0,0.3);
+}
+.pin-view-author .pva-info .name {
+  font-family: 'Gowun Batang', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.pin-view-author .pva-info .when {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--sepia);
+}
+
+.pin-view-message {
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 1.25rem;
+  color: var(--ink);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin-top: 14px;
+  padding: 12px 4px;
+}
+
+.pin-view-image {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  background: var(--paper-deep);
+  cursor: zoom-in;
+}
+
+/* ─── 빈 지도 안내 ─── */
+.map-empty-hint {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px dashed var(--sepia-soft);
+  padding: 16px 20px;
+  font-family: 'Gowun Dodum', sans-serif;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.map-empty-hint strong {
+  font-family: 'Gowun Batang', serif;
+  color: var(--wax);
+}
+

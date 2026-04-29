@@ -19,6 +19,13 @@ document.querySelectorAll('.tab').forEach(t => {
     } else if (t.dataset.tab === 'trash') {
       await loadTrash();
       renderTrashPanel();
+    } else if (t.dataset.tab === 'map') {
+      // 지도 lazy 초기화
+      if (typeof initMap === 'function') {
+        initMap();
+        await loadPins();
+        renderPins();
+      }
     }
   });
 });
