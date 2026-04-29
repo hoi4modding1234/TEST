@@ -2777,50 +2777,38 @@
    v7: 친구 시스템 + 휴지통
    ═══════════════════════════════════════════════════════════ */
 
-/* ─── 친구 신청 봉투 표식 (♥) ─── */
-.envelope.friend-request,
-.stage-envelope.friend-request {
-  /* 가장자리에 살짝 분홍 빛 그라디언트 */
-}
-.envelope.friend-request::before,
-.stage-envelope.friend-request::before {
-  /* 윗덮개에 살짝 다른 톤 — 봉투 자체 데코는 유지하되 약간만 강조 */
-  filter: brightness(1.05);
-}
-
-.friend-badge {
+/* ─── 친구 신청·답신 봉투 작은 표시 ─── */
+.friend-dot {
   position: absolute;
-  top: -10px;
-  left: 14px;
-  z-index: 4;
-  background: linear-gradient(135deg, #d4546c 0%, #b03050 100%);
+  top: 8px;
+  left: 10px;
+  z-index: 5;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
   color: #fff;
-  padding: 4px 10px;
-  font-family: 'Gowun Batang', serif;
-  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 2px;
-  box-shadow: 0 3px 8px rgba(176, 48, 80, 0.4);
-  transform: rotate(-3deg);
-  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
 }
-.friend-badge::before { content: '♥ '; }
-.stage-envelope .friend-badge {
-  top: -14px;
-  left: 22px;
-  font-size: 0.85rem;
-  padding: 6px 14px;
+.friend-dot.req {
+  background: linear-gradient(135deg, #d4546c 0%, #b03050 100%);
 }
-.envelope.friend-accept .friend-badge {
-  background: linear-gradient(135deg, #6ba26b 0%, #3f7a3f 100%);
-  box-shadow: 0 3px 8px rgba(63, 122, 63, 0.4);
-}
-.envelope.friend-accept .friend-badge::before { content: '✓ '; }
-.stage-envelope.friend-accept .friend-badge {
+.friend-dot.acc {
   background: linear-gradient(135deg, #6ba26b 0%, #3f7a3f 100%);
 }
-.stage-envelope.friend-accept .friend-badge::before { content: '✓ '; }
+.stage-envelope .friend-dot {
+  width: 18px;
+  height: 18px;
+  font-size: 0.78rem;
+  top: 12px;
+  left: 14px;
+}
+/* 기존 큰 .friend-badge 는 더 이상 사용하지 않지만 남아있을 수 있으므로 숨김 */
+.friend-badge { display: none !important; }
 
 /* ─── 친구 신청 단계 라벨 (보낸 편지 항목·받은 편지 라벨용) ─── */
 .fr-state {
@@ -3823,4 +3811,76 @@
 }
 .postbox-letter-row .pblr-date .status.transit { color: var(--wax); }
 .postbox-letter-row .pblr-date .status.opened  { color: var(--stamp-green); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   v9: 우편함 드래그 (휴지통 + 순서 조절)
+   ═══════════════════════════════════════════════════════════ */
+
+.envelope { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.envelope.dragging {
+  z-index: 9999;
+  cursor: grabbing;
+  transition: none;
+  filter: drop-shadow(0 14px 28px rgba(0,0,0,0.45));
+  pointer-events: none;
+}
+
+.envelope.drop-target-before { box-shadow: -4px 0 0 var(--wax); }
+.envelope.drop-target-after  { box-shadow:  4px 0 0 var(--wax); }
+
+.envelope.lift-hint {
+  animation: liftHintPulse 0.6s ease-out;
+}
+@keyframes liftHintPulse {
+  0%   { transform: scale(1); }
+  60%  { transform: scale(1.04); filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
+  100% { transform: scale(1); }
+}
+
+/* 화면 하단에 떠오르는 휴지통 — 드래그 중에만 표시 */
+.drag-trash {
+  position: fixed;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  width: 110px;
+  height: 110px;
+  background: var(--paper);
+  border: 2px solid var(--sepia);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--sepia);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.35);
+  transition: bottom 0.25s cubic-bezier(0.4, 1.4, 0.5, 1), background 0.2s, color 0.2s, transform 0.2s;
+  pointer-events: none;
+}
+.drag-trash .icon {
+  font-size: 1.8rem;
+  margin-bottom: 2px;
+}
+.drag-trash.show {
+  bottom: 24px;
+  pointer-events: auto;
+}
+.drag-trash.over {
+  background: var(--wax);
+  color: var(--paper);
+  border-color: var(--wax);
+  transform: translateX(-50%) scale(1.1);
+}
+
+/* 모바일에서 롱프레스 진행 표시 */
+.envelope.long-pressing {
+  filter: drop-shadow(0 6px 12px rgba(139, 30, 30, 0.5));
+  transform: scale(0.97);
+}
 

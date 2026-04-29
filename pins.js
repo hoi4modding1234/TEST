@@ -71,9 +71,11 @@ function initMap() {
   const map = L.map('leaflet-map', {
     center: [startLat, startLng],
     zoom: 11,
-    zoomControl: true,
+    zoomControl: false,  // 기본 zoom control 끄고 아래에서 직접 위치 지정
     worldCopyJump: true
   });
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -595,10 +597,6 @@ document.getElementById('postbox-toggle').addEventListener('click', () => {
 
 // 편지를 격자별로 그룹핑
 function buildPostboxes() {
-  // 사용자가 받은 편지 + 보낸 편지 모두 — 발신자의 좌표(from_lat/lng) 기준
-  // 받은 편지: 상대방이 보낸 곳 → 그쪽 도시에 우체통
-  // 보낸 편지: 본인이 보낸 곳(=내 출발지) → 내 위치에 우체통
-  // 둘 다 from_lat/from_lng 가 발신지라 동일 컬럼 사용
   const all = [
     ...State.letters.map(l => ({ ...l, _direction: 'received' })),
     ...State.sent.map(l => ({ ...l, _direction: 'sent' }))
@@ -609,13 +607,12 @@ function buildPostboxes() {
     if (L.from_lat == null || L.from_lng == null) continue;
     const key = postboxKey(L.from_lat, L.from_lng);
     if (!groups.has(key)) {
-      const center = postboxCenter(key);
-      groups.set(key, { key, lat: center.lat, lng: center.lng, letters: [] });
+      // 이 격자의 첫 편지 좌표를 마커 위치로 사용 (격자 중심 X)
+      groups.set(key, { key, lat: L.from_lat, lng: L.from_lng, letters: [] });
     }
     groups.get(key).letters.push(L);
   }
 
-  // 시간순 정렬 — 각 우체통 안의 편지를 최신순으로
   for (const pb of groups.values()) {
     pb.letters.sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
   }

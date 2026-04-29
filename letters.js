@@ -7,7 +7,8 @@
 // ───────────────────────────────────────────────────────────
 async function loadMailbox() {
   const nowIso = new Date().toISOString();
-  // 도착했고 + 가져갔고 + 휴지통에 안 들어간 편지만
+  // 도착 + 가져갔고 + 휴지통 아닌 편지
+  // 정렬: sort_order 가 있으면 그 값 우선(내림차순), 없으면 picked_up_at 내림차순
   const { data, error } = await supa
     .from('letters')
     .select('*')
@@ -15,6 +16,8 @@ async function loadMailbox() {
     .lte('deliver_at', nowIso)
     .eq('picked_up', true)
     .is('trashed_at', null)
+    .order('sort_order', { ascending: false, nullsFirst: false })
+    .order('picked_up_at', { ascending: false, nullsFirst: false })
     .order('deliver_at', { ascending: false });
   if (error) { console.error(error); return; }
   State.letters = data || [];
@@ -121,8 +124,13 @@ function renderAll() {
     badge.style.display = 'none';
   }
 
-  // 새로 도착한(아직 안 읽은) — 가져온 편지 중에서
+  // 우편함 안의 편지 일러스트 — 미수령·미열람 모두 없으면 숨김
   const unreadCount = State.letters.filter(l => !l.opened).length;
+  const mbLetters = document.getElementById('mb-letters');
+  if (mbLetters) {
+    const showInside = pendingCount > 0 || unreadCount > 0;
+    mbLetters.style.display = showInside ? '' : 'none';
+  }
 
   const desc = document.getElementById('mb-desc');
   if (pendingCount > 0) {
@@ -165,20 +173,20 @@ function envelopeHtml(L) {
   const titleHtml = L.title ? `<div class="env-title">${escapeHtml(L.title)}</div>` : '';
   const stampSvg = renderStampSvg(L.stamp_id || 'standard', { km: distKm, sealColor });
   let friendCls = '';
-  let friendBadge = '';
+  let friendDot = '';
   if (L.friend_kind === 'request') {
     friendCls = ' friend-request';
-    friendBadge = '<div class="friend-badge">친구 신청</div>';
+    friendDot = '<div class="friend-dot req" title="친구 신청">♥</div>';
   } else if (L.friend_kind === 'accept') {
     friendCls = ' friend-accept';
-    friendBadge = '<div class="friend-badge">수락 답신</div>';
+    friendDot = '<div class="friend-dot acc" title="수락 답신">✓</div>';
   }
   return `
     <div class="envelope ${opened} seal-${escapeAttr(sealColor)}${friendCls}" data-env="${escapeAttr(envStyle)}" data-letter-id="${escapeAttr(L.id)}" title="편지 열기">
       <div class="envelope-texture-overlay"></div>
       <div class="env-postmark">${postmarkInner(cityCode, L.sent_at, distKm)}</div>
       <div class="postage-stamp">${stampSvg}</div>
-      ${friendBadge}
+      ${friendDot}
       ${titleHtml}
       <div class="env-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
       ${L.opened ? '' : `<div class="env-seal">${escapeHtml(sealText)}</div>`}
@@ -274,13 +282,13 @@ async function openLetter(id) {
   const stampSvg = renderStampSvg(L.stamp_id || 'standard', { km: distKm, sealColor });
   const titleHtml = L.title ? `<div class="stage-title">${escapeHtml(L.title)}</div>` : '';
   let friendCls = '';
-  let friendBadge = '';
+  let friendDot = '';
   if (L.friend_kind === 'request') {
     friendCls = ' friend-request';
-    friendBadge = '<div class="friend-badge">친구 신청</div>';
+    friendDot = '<div class="friend-dot req" title="친구 신청">♥</div>';
   } else if (L.friend_kind === 'accept') {
     friendCls = ' friend-accept';
-    friendBadge = '<div class="friend-badge">수락 답신</div>';
+    friendDot = '<div class="friend-dot acc" title="수락 답신">✓</div>';
   }
 
   stage.innerHTML = `
@@ -291,7 +299,7 @@ async function openLetter(id) {
         ${postmarkInner(cityCode, L.sent_at, distKm)}
       </div>
       <div class="postage-stamp">${stampSvg}</div>
-      ${friendBadge}
+      ${friendDot}
       ${titleHtml}
       <div class="stage-from-meta"><span class="lbl">From</span>${escapeHtml(L.from_username)}<br><span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:0.85rem;color:var(--sepia);">${escapeHtml(L.from_location_name || '')}</span></div>
       <div class="stage-seal">${escapeHtml(sealText)}</div>
@@ -343,16 +351,9 @@ async function renderLetterContent(L) {
   const paperStyle = L.paper_style || 'cream';
   const titleHtml = L.title ? `<div class="lcp-title">${escapeHtml(L.title)}</div>` : '';
 
-  // 받은 편지에만 휴지통 버튼 (보낸 편지는 안 보여줌)
-  const isReceived = (L.to_user === State.me.id);
-  const toolsHtml = isReceived
-    ? `<div class="lcp-tools"><button class="lcp-tool danger" id="lcp-trash" title="휴지통으로" type="button">🗑</button></div>`
-    : '';
-
   stage.innerHTML = `
     <div class="letter-content-paper lcp" id="lcp" data-paper="${escapeAttr(paperStyle)}">
       <div class="paper-texture-overlay"></div>
-      ${toolsHtml}
       ${titleHtml}
       <div class="lcp-header">
         <div class="lcp-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
@@ -373,18 +374,6 @@ async function renderLetterContent(L) {
       document.getElementById('lightbox').classList.add('show');
     });
   });
-
-  // 휴지통 버튼
-  const trashBtn = document.getElementById('lcp-trash');
-  if (trashBtn) {
-    trashBtn.addEventListener('click', async () => {
-      if (!confirm('이 편지를 휴지통으로 보내시겠습니까? (7일 후 영구 삭제)')) return;
-      const ok = await trashLetter(L.id);
-      if (ok) {
-        document.getElementById('letter-modal').classList.remove('show');
-      }
-    });
-  }
 
   // 친구 신청·답신 편지 처리
   if (L.friend_kind && typeof appendFriendActionBar === 'function') {
@@ -959,3 +948,285 @@ async function doSendLetter() {
     showToast('편지를 보내지 못했습니다: ' + (err.message || ''));
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+//  v9: 드래그 — 휴지통 + 순서 조절 (Pointer Events 통합)
+// ═══════════════════════════════════════════════════════════
+
+(function setupDragSystem() {
+  // 휴지통 DOM 준비
+  let trashEl = document.getElementById('drag-trash');
+  if (!trashEl) {
+    trashEl = document.createElement('div');
+    trashEl.id = 'drag-trash';
+    trashEl.className = 'drag-trash';
+    trashEl.innerHTML = '<div class="icon">🗑</div><div>버리기</div>';
+    document.body.appendChild(trashEl);
+  }
+
+  const LONG_PRESS_MS = 220;       // 모바일/데스크탑 공통 — 짧은 클릭과 드래그 구분
+  const MOVE_THRESHOLD = 8;        // 이만큼 움직여야 드래그 시작 (탭과 구분)
+
+  let pressing = null;             // { el, startX, startY, pointerId, longPressTimer, started }
+  let dragState = null;            // { el, ghost, letterId, offX, offY }
+  let trashOver = false;
+  let lastDropTarget = null;
+  let lastDropPosition = null;
+
+  function findDraggableEnvelope(target) {
+    return target.closest('#arrived-grid .envelope[data-letter-id]');
+  }
+
+  function onPointerDown(e) {
+    if (e.button && e.button !== 0) return;  // 좌클릭만
+    const env = findDraggableEnvelope(e.target);
+    if (!env) return;
+    if (e.target.closest('.lcp-img')) return;  // 사진 클릭 방해 X
+
+    pressing = {
+      el: env,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId: e.pointerId,
+      started: false,
+      longPressTimer: null,
+      preventClick: false
+    };
+
+    pressing.longPressTimer = setTimeout(() => {
+      if (!pressing) return;
+      env.classList.add('long-pressing');
+      // 햅틱 (모바일)
+      if (navigator.vibrate) try { navigator.vibrate(20); } catch {}
+    }, LONG_PRESS_MS);
+  }
+
+  function onPointerMove(e) {
+    if (!pressing) return;
+    const dx = e.clientX - pressing.startX;
+    const dy = e.clientY - pressing.startY;
+    const dist2 = dx*dx + dy*dy;
+
+    if (!pressing.started) {
+      if (dist2 < MOVE_THRESHOLD * MOVE_THRESHOLD) return;
+      // 데스크탑: 즉시 드래그 시작
+      // 모바일: 롱프레스 완료 후에만 시작 (long-pressing 클래스 확인)
+      const isTouch = e.pointerType === 'touch';
+      if (isTouch && !pressing.el.classList.contains('long-pressing')) {
+        // 터치인데 아직 롱프레스 안 끝남 — 스크롤로 간주, 드래그 취소
+        cancelPress();
+        return;
+      }
+      startDrag(e);
+    }
+
+    if (dragState) updateDragPosition(e);
+  }
+
+  function startDrag(e) {
+    pressing.started = true;
+    pressing.preventClick = true;
+    clearTimeout(pressing.longPressTimer);
+
+    const el = pressing.el;
+    const rect = el.getBoundingClientRect();
+    const offX = pressing.startX - rect.left;
+    const offY = pressing.startY - rect.top;
+
+    el.classList.remove('long-pressing');
+    el.classList.add('dragging');
+    el.style.position = 'fixed';
+    el.style.left = (e.clientX - offX) + 'px';
+    el.style.top = (e.clientY - offY) + 'px';
+    el.style.width = rect.width + 'px';
+    el.style.zIndex = '9999';
+    // try to capture pointer
+    try { el.setPointerCapture(e.pointerId); } catch {}
+
+    dragState = { el, letterId: el.dataset.letterId, offX, offY };
+    trashEl.classList.add('show');
+    document.body.style.cursor = 'grabbing';
+  }
+
+  function updateDragPosition(e) {
+    const el = dragState.el;
+    el.style.left = (e.clientX - dragState.offX) + 'px';
+    el.style.top  = (e.clientY - dragState.offY) + 'px';
+
+    // 휴지통 충돌 검사
+    const tr = trashEl.getBoundingClientRect();
+    const inTrash = e.clientX >= tr.left && e.clientX <= tr.right &&
+                    e.clientY >= tr.top  && e.clientY <= tr.bottom;
+    if (inTrash !== trashOver) {
+      trashOver = inTrash;
+      trashEl.classList.toggle('over', trashOver);
+    }
+
+    // 드롭 타겟 (다른 봉투) 찾기 — pointer 위치의 element
+    if (!trashOver) {
+      const elemBelow = elementUnderPointer(e.clientX, e.clientY, el);
+      const targetEnv = elemBelow ? elemBelow.closest('#arrived-grid .envelope[data-letter-id]') : null;
+      updateDropIndicator(targetEnv, e.clientX);
+    } else {
+      updateDropIndicator(null);
+    }
+  }
+
+  function elementUnderPointer(x, y, ignore) {
+    // dragging element 자체는 제외
+    const prev = ignore.style.pointerEvents;
+    ignore.style.pointerEvents = 'none';
+    const el = document.elementFromPoint(x, y);
+    ignore.style.pointerEvents = prev;
+    return el;
+  }
+
+  function updateDropIndicator(env, pointerX) {
+    if (lastDropTarget && lastDropTarget !== env) {
+      lastDropTarget.classList.remove('drop-target-before', 'drop-target-after');
+    }
+    if (!env || env === dragState.el) {
+      lastDropTarget = null;
+      lastDropPosition = null;
+      return;
+    }
+    const rect = env.getBoundingClientRect();
+    const before = pointerX < rect.left + rect.width / 2;
+    env.classList.toggle('drop-target-before', before);
+    env.classList.toggle('drop-target-after', !before);
+    lastDropTarget = env;
+    lastDropPosition = before ? 'before' : 'after';
+  }
+
+  async function onPointerUp(e) {
+    if (!pressing) return;
+
+    if (!pressing.started) {
+      // 드래그가 시작되지 않은 일반 클릭
+      cancelPress();
+      return;
+    }
+
+    const ds = dragState;
+    const dropOnTrash = trashOver;
+    const dropTarget = lastDropTarget;
+    const dropPosition = lastDropPosition;
+    const letterId = ds.letterId;
+
+    // 정리
+    finishDrag();
+
+    if (dropOnTrash) {
+      // 휴지통으로
+      await trashLetter(letterId);
+      return;
+    }
+
+    if (dropTarget) {
+      // 순서 조정
+      await reorderTo(letterId, dropTarget.dataset.letterId, dropPosition);
+    }
+    // 드롭 타겟이 없으면 그냥 원위치 (renderAll 로 자연스럽게 다시 그려짐)
+  }
+
+  function cancelPress() {
+    if (!pressing) return;
+    if (pressing.longPressTimer) clearTimeout(pressing.longPressTimer);
+    if (pressing.el) pressing.el.classList.remove('long-pressing');
+    pressing = null;
+  }
+
+  function finishDrag() {
+    if (dragState) {
+      const el = dragState.el;
+      el.classList.remove('dragging');
+      el.style.position = '';
+      el.style.left = '';
+      el.style.top = '';
+      el.style.width = '';
+      el.style.zIndex = '';
+    }
+    if (lastDropTarget) {
+      lastDropTarget.classList.remove('drop-target-before', 'drop-target-after');
+    }
+    trashEl.classList.remove('show', 'over');
+    document.body.style.cursor = '';
+    dragState = null;
+    trashOver = false;
+    lastDropTarget = null;
+    lastDropPosition = null;
+    pressing = null;
+  }
+
+  // 클릭이 드래그 직후 발생하는 걸 막음
+  document.addEventListener('click', e => {
+    const env = findDraggableEnvelope(e.target);
+    if (!env) return;
+    // pressing 이 preventClick 표시를 남겼으면 한 번 차단
+    if (env._suppressNextClick) {
+      env._suppressNextClick = false;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, true);
+
+  document.addEventListener('pointerdown', onPointerDown);
+  document.addEventListener('pointermove', onPointerMove);
+  document.addEventListener('pointerup', onPointerUp);
+  document.addEventListener('pointercancel', () => {
+    if (dragState) finishDrag();
+    else cancelPress();
+  });
+
+  // 드래그 진행 중 클릭 방지를 위해
+  document.addEventListener('click', e => {
+    const env = findDraggableEnvelope(e.target);
+    if (env && pressing && pressing.preventClick) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      pressing.preventClick = false;
+    }
+  }, true);
+
+  // ────────────────────────────────────────────
+  //  순서 재계산 + DB 업데이트
+  // ────────────────────────────────────────────
+  async function reorderTo(movedId, targetId, position) {
+    if (movedId === targetId) return;
+    const letters = State.letters.slice();
+    const fromIdx = letters.findIndex(l => l.id === movedId);
+    const toIdx   = letters.findIndex(l => l.id === targetId);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    const [moved] = letters.splice(fromIdx, 1);
+    let insertIdx = letters.findIndex(l => l.id === targetId);
+    if (position === 'after') insertIdx += 1;
+    letters.splice(insertIdx, 0, moved);
+
+    // 새 sort_order 부여 — 가장 위가 큰 값, 아래로 갈수록 작은 값
+    // 충분한 간격(1000)을 두고 정수로 부여, 향후 미세 조정 가능
+    const updates = letters.map((l, i) => ({
+      id: l.id,
+      sort_order: (letters.length - i) * 1000
+    }));
+
+    // 낙관적 UI: 즉시 State 갱신 + 재렌더
+    const orderById = new Map(updates.map(u => [u.id, u.sort_order]));
+    for (const l of State.letters) {
+      const v = orderById.get(l.id);
+      if (v !== undefined) l.sort_order = v;
+    }
+    State.letters.sort((a, b) => (b.sort_order || 0) - (a.sort_order || 0));
+    renderAll();
+
+    // 서버로
+    const { error } = await supa.rpc('reorder_letters', { orders: updates });
+    if (error) {
+      console.error(error);
+      showToast('순서 저장 실패: ' + error.message);
+      // 실패 시 다시 로드
+      await loadMailbox();
+      renderAll();
+    }
+  }
+})();
