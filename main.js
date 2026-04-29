@@ -6,11 +6,20 @@
 //  TABS
 // ───────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
+  t.addEventListener('click', async () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+
+    // 탭별 lazy 렌더
+    if (t.dataset.tab === 'friends') {
+      await Promise.all([loadFriends(), loadPendingRequests()]);
+      renderFriendsPanel();
+    } else if (t.dataset.tab === 'trash') {
+      await loadTrash();
+      renderTrashPanel();
+    }
   });
 });
 
@@ -28,7 +37,6 @@ async function launchApp() {
   State.composeStyle.envelope = State.me.envelope_default || 'cream';
   State.composeStyle.stamp    = 'standard';
 
-  // 작성 영역 배경에도 기본 편지지 적용
   const composePaper = document.getElementById('compose-paper');
   if (composePaper) composePaper.dataset.paper = State.composeStyle.paper;
 
@@ -38,19 +46,37 @@ async function launchApp() {
   renderEnvelopePicker();
   renderStampPicker();
 
-  await Promise.all([loadMailbox(), loadSent(), loadPendingCount()]);
+  // 친구·휴지통은 비동기로 로드, 백그라운드 정리도
+  await Promise.all([
+    loadMailbox(),
+    loadSent(),
+    loadPendingCount(),
+    loadFriends(),
+    loadPendingRequests()
+  ]);
   renderAll();
+  renderRecipientQuick();
+  renderPendingFriendBar();
+  renderFriendBadge();
   startAutoRefresh();
 
-  // 첫 진입 시 도전과제 한 번 체크 (기존 사용자에게 누락된 우표 회수)
+  // 백그라운드 정리 + 도전과제
+  runMaintenance();
   checkAchievementsBackground();
 }
 
 function startAutoRefresh() {
   if (State.refreshTimer) clearInterval(State.refreshTimer);
   State.refreshTimer = setInterval(async () => {
-    await Promise.all([loadMailbox(), loadSent(), loadPendingCount()]);
+    await Promise.all([
+      loadMailbox(),
+      loadSent(),
+      loadPendingCount(),
+      loadPendingRequests()
+    ]);
     renderAll();
+    renderPendingFriendBar();
+    renderFriendBadge();
   }, 20000);
 }
 

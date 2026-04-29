@@ -7,13 +7,14 @@
 // ───────────────────────────────────────────────────────────
 async function loadMailbox() {
   const nowIso = new Date().toISOString();
-  // 도착했고 + 사용자가 우편함을 열어 가져간 편지만 우편함 안에 표시
+  // 도착했고 + 가져갔고 + 휴지통에 안 들어간 편지만
   const { data, error } = await supa
     .from('letters')
     .select('*')
     .eq('to_user', State.me.id)
     .lte('deliver_at', nowIso)
     .eq('picked_up', true)
+    .is('trashed_at', null)
     .order('deliver_at', { ascending: false });
   if (error) { console.error(error); return; }
   State.letters = data || [];
@@ -27,7 +28,8 @@ async function loadPendingCount() {
     .select('id', { count: 'exact', head: true })
     .eq('to_user', State.me.id)
     .lte('deliver_at', nowIso)
-    .eq('picked_up', false);
+    .eq('picked_up', false)
+    .is('trashed_at', null);
   if (error) { console.error(error); State.pendingCount = 0; return; }
   State.pendingCount = count || 0;
 }
@@ -36,35 +38,36 @@ async function loadPendingCount() {
 async function pickupLetters() {
   if (!State.pendingCount || State.pendingCount === 0) return;
   const nowIso = new Date().toISOString();
-  // 가져갈 편지를 먼저 조회 (알림용)
   const { data: pending, error: fetchErr } = await supa
     .from('letters')
     .select('*')
     .eq('to_user', State.me.id)
     .lte('deliver_at', nowIso)
-    .eq('picked_up', false);
+    .eq('picked_up', false)
+    .is('trashed_at', null);
   if (fetchErr) { console.error(fetchErr); return; }
 
-  // picked_up = true 로 표시
   const { error: updErr } = await supa
     .from('letters')
     .update({ picked_up: true, picked_up_at: nowIso })
     .eq('to_user', State.me.id)
     .lte('deliver_at', nowIso)
-    .eq('picked_up', false);
+    .eq('picked_up', false)
+    .is('trashed_at', null);
   if (updErr) { console.error(updErr); showToast('편지를 가져오지 못했어요'); return; }
 
-  // 알림 (브라우저 알림)
   for (const L of (pending || [])) notifyNewLetter(L);
 
-  // UI 갱신
-  await Promise.all([loadMailbox(), loadPendingCount()]);
+  await Promise.all([loadMailbox(), loadPendingCount(), loadPendingRequests()]);
   renderAll();
-
-  // 우편함 시각 효과
   flashPickup(pending.length);
 
-  // 도전과제 검사
+  // 친구 신청 알림 바도 갱신
+  if (typeof renderFriendsPanel === 'function') {
+    renderPendingFriendBar();
+    renderFriendBadge();
+  }
+
   checkAchievementsBackground();
 }
 
@@ -155,11 +158,21 @@ function envelopeHtml(L) {
   const opened = L.opened ? 'opened' : '';
   const titleHtml = L.title ? `<div class="env-title">${escapeHtml(L.title)}</div>` : '';
   const stampSvg = renderStampSvg(L.stamp_id || 'standard', { km: distKm, sealColor });
+  let friendCls = '';
+  let friendBadge = '';
+  if (L.friend_kind === 'request') {
+    friendCls = ' friend-request';
+    friendBadge = '<div class="friend-badge">친구 신청</div>';
+  } else if (L.friend_kind === 'accept') {
+    friendCls = ' friend-accept';
+    friendBadge = '<div class="friend-badge">수락 답신</div>';
+  }
   return `
-    <div class="envelope ${opened} seal-${escapeAttr(sealColor)}" data-env="${escapeAttr(envStyle)}" data-letter-id="${escapeAttr(L.id)}" title="편지 열기">
+    <div class="envelope ${opened} seal-${escapeAttr(sealColor)}${friendCls}" data-env="${escapeAttr(envStyle)}" data-letter-id="${escapeAttr(L.id)}" title="편지 열기">
       <div class="envelope-texture-overlay"></div>
       <div class="env-postmark">${postmarkInner(cityCode, L.sent_at, distKm)}</div>
       <div class="postage-stamp">${stampSvg}</div>
+      ${friendBadge}
       ${titleHtml}
       <div class="env-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
       ${L.opened ? '' : `<div class="env-seal">${escapeHtml(sealText)}</div>`}
@@ -254,15 +267,25 @@ async function openLetter(id) {
   const cityCode = (L.from_location_name || '').slice(0, 6).toUpperCase() || '——';
   const stampSvg = renderStampSvg(L.stamp_id || 'standard', { km: distKm, sealColor });
   const titleHtml = L.title ? `<div class="stage-title">${escapeHtml(L.title)}</div>` : '';
+  let friendCls = '';
+  let friendBadge = '';
+  if (L.friend_kind === 'request') {
+    friendCls = ' friend-request';
+    friendBadge = '<div class="friend-badge">친구 신청</div>';
+  } else if (L.friend_kind === 'accept') {
+    friendCls = ' friend-accept';
+    friendBadge = '<div class="friend-badge">수락 답신</div>';
+  }
 
   stage.innerHTML = `
-    <div class="stage-envelope seal-${escapeAttr(sealColor)}" data-env="${escapeAttr(envStyle)}" id="stage-env">
+    <div class="stage-envelope seal-${escapeAttr(sealColor)}${friendCls}" data-env="${escapeAttr(envStyle)}" id="stage-env">
       <div class="envelope-texture-overlay"></div>
       <div class="torn-edge"></div>
       <div class="env-postmark" style="top:24px;left:24px;">
         ${postmarkInner(cityCode, L.sent_at, distKm)}
       </div>
       <div class="postage-stamp">${stampSvg}</div>
+      ${friendBadge}
       ${titleHtml}
       <div class="stage-from-meta"><span class="lbl">From</span>${escapeHtml(L.from_username)}<br><span style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:0.85rem;color:var(--sepia);">${escapeHtml(L.from_location_name || '')}</span></div>
       <div class="stage-seal">${escapeHtml(sealText)}</div>
@@ -314,9 +337,16 @@ async function renderLetterContent(L) {
   const paperStyle = L.paper_style || 'cream';
   const titleHtml = L.title ? `<div class="lcp-title">${escapeHtml(L.title)}</div>` : '';
 
+  // 받은 편지에만 휴지통 버튼 (보낸 편지는 안 보여줌)
+  const isReceived = (L.to_user === State.me.id);
+  const toolsHtml = isReceived
+    ? `<div class="lcp-tools"><button class="lcp-tool danger" id="lcp-trash" title="휴지통으로" type="button">🗑</button></div>`
+    : '';
+
   stage.innerHTML = `
     <div class="letter-content-paper lcp" id="lcp" data-paper="${escapeAttr(paperStyle)}">
       <div class="paper-texture-overlay"></div>
+      ${toolsHtml}
       ${titleHtml}
       <div class="lcp-header">
         <div class="lcp-from"><span class="lbl">From</span>${escapeHtml(L.from_username)}</div>
@@ -337,6 +367,23 @@ async function renderLetterContent(L) {
       document.getElementById('lightbox').classList.add('show');
     });
   });
+
+  // 휴지통 버튼
+  const trashBtn = document.getElementById('lcp-trash');
+  if (trashBtn) {
+    trashBtn.addEventListener('click', async () => {
+      if (!confirm('이 편지를 휴지통으로 보내시겠습니까? (7일 후 영구 삭제)')) return;
+      const ok = await trashLetter(L.id);
+      if (ok) {
+        document.getElementById('letter-modal').classList.remove('show');
+      }
+    });
+  }
+
+  // 친구 신청·답신 편지 처리
+  if (L.friend_kind && typeof appendFriendActionBar === 'function') {
+    await appendFriendActionBar(L);
+  }
 
   renderAll();
 }
@@ -408,6 +455,8 @@ async function checkRecipient() {
   updateComposeUi();
   // 우표 미리보기에 거리 반영
   if (typeof renderStampPicker === 'function') renderStampPicker();
+  // 친구 신청 토글 가시성 갱신
+  if (typeof refreshFriendToggleVisibility === 'function') refreshFriendToggleVisibility();
 }
 
 function updateComposeUi() {
@@ -811,14 +860,12 @@ async function doSendLetter() {
     const now = Date.now();
     const safeBodyHtml = sanitizeLetterHtml(bodyHtmlRaw);
 
-    const { error } = await supa.from('letters').insert({
-      id: letterId,
-      from_user: State.me.id,
+    // 공통 letter payload
+    const payload = {
       from_username: State.me.username,
       from_location_name: State.me.location_name,
       from_lat: State.me.lat,
       from_lng: State.me.lng,
-      to_user: State.recipientCache.profile.id,
       to_username: State.recipientCache.profile.username,
       title: titleVal,
       body: bodyText,
@@ -832,21 +879,68 @@ async function doSendLetter() {
       stamp_id: State.composeStyle.stamp || 'standard',
       seal_color: State.me.seal_color || 'crimson',
       seal_symbol: State.me.seal_symbol || ''
-    });
-    if (error) throw error;
+    };
+
+    // 분기 — 답신, 친구 신청, 일반
+    if (State.acceptingRequest) {
+      // 수락 답신 편지
+      const { error } = await supa.rpc('send_accept_reply', {
+        request_id: State.acceptingRequest,
+        letter_id: letterId,
+        letter_payload: payload
+      });
+      if (error) throw error;
+      State.acceptingRequest = null;
+      showToast(`✓ 답신을 보냈어요. 도착하면 친구가 됩니다 (${formatDuration(ms)} 후)`);
+    } else if (State.composeFriendRequest) {
+      // 친구 신청 편지
+      const { error } = await supa.rpc('send_friend_request', {
+        to_user_id: State.recipientCache.profile.id,
+        letter_id: letterId,
+        letter_payload: payload
+      });
+      if (error) throw error;
+      State.composeFriendRequest = false;
+      friendToggle.classList.remove('on');
+      showToast(`♥ ${State.recipientCache.profile.username}님께 친구 신청 편지를 보냈어요 (${formatDuration(ms)} 후 도착)`);
+    } else {
+      // 일반 편지
+      const { error } = await supa.from('letters').insert({
+        id: letterId,
+        from_user: State.me.id,
+        from_username: State.me.username,
+        from_location_name: State.me.location_name,
+        from_lat: State.me.lat,
+        from_lng: State.me.lng,
+        to_user: State.recipientCache.profile.id,
+        to_username: State.recipientCache.profile.username,
+        title: titleVal,
+        body: bodyText,
+        body_html: safeBodyHtml,
+        images: imagePaths,
+        distance: dist,
+        sent_at: new Date(now).toISOString(),
+        deliver_at: new Date(now + ms).toISOString(),
+        paper_style: State.composeStyle.paper,
+        envelope_style: State.composeStyle.envelope,
+        stamp_id: State.composeStyle.stamp || 'standard',
+        seal_color: State.me.seal_color || 'crimson',
+        seal_symbol: State.me.seal_symbol || ''
+      });
+      if (error) throw error;
+      showToast(`✈ ${State.recipientCache.profile.username}님에게 편지를 보냈어요 (${formatDuration(ms)} 후 도착)`);
+    }
 
     // 폼 리셋
     letterBody.innerHTML = '';
     document.getElementById('letter-title-input').value = '';
     State.composeImages = [];
     renderImageStrip();
-    showToast(`✈ ${State.recipientCache.profile.username}님에게 편지를 보냈어요 (${formatDuration(ms)} 후 도착)`);
 
-    await loadSent();
+    await Promise.all([loadSent(), loadPendingRequests()]);
     renderAll();
     document.querySelector('.tab[data-tab="sent"]').click();
 
-    // 도전과제 검사
     checkAchievementsBackground();
   } catch (err) {
     console.error(err);
