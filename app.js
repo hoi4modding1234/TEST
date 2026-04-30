@@ -126,7 +126,13 @@ function sanitizeLetterHtml(html) {
   if (typeof DOMPurify === 'undefined') {
     return escapeHtml(html).replace(/\n/g, '<br>');
   }
-  return DOMPurify.sanitize(html, {
+  // 빈 div/p 가 의도적으로 빈 줄을 표현하므로 zero-width space 채워서 보존
+  // (DOMPurify가 비어있는 블록 요소를 정리해버리는 걸 방지)
+  const prepped = String(html || '').replace(
+    /<(div|p)([^>]*)>(\s*)<\/(div|p)>/gi,
+    '<$1$2>\u200B</$1>'
+  );
+  return DOMPurify.sanitize(prepped, {
     ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'br', 'div', 'span', 'p'],
     ALLOWED_ATTR: ['style'],
     ALLOWED_CSS: ['color', 'font-family', 'font-weight', 'font-style', 'text-decoration'],

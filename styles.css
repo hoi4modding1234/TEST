@@ -35,6 +35,32 @@
     --seal-plum:     #6b3a5e;
     --seal-plum-l:   #9a5d8a;
     --seal-plum-d:   #401f37;
+
+    /* ─── Time-of-day palette (JS interpolates between these) ─── */
+    --sky-top:    #87ceeb;   /* runtime overridden */
+    --sky-bot:    #d4e8f0;
+    --land-far:   #6b8a64;
+    --land-near:  #4a6e3a;
+    --water:      #6ba0c4;
+    --grass:      #5a8842;
+    --grass-tip:  #c4b85a;
+    --house-wall: #6b4226;
+    --house-roof: #4a2818;
+    --light-overlay: rgba(0,0,0,0);  /* time-of-day overlay color */
+  }
+
+  /* ─── 스크롤바 — 모든 곳에서 시각적으로 숨김 ─── */
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+  /* 콘텐츠가 잘릴 가능성 있는 컨테이너에 페이드 마스크 — 클래스로 적용 */
+  .scroll-fade-bottom {
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 24px), transparent 100%);
+  }
+  .scroll-fade-y {
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(180deg, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -660,12 +686,25 @@
       repeating-linear-gradient(0deg, transparent 0 32px, rgba(45, 36, 25, 0.06) 32px 33px),
       linear-gradient(180deg, #fbf5e3 0%, #f3e8d0 100%);
     border: 1px solid var(--sepia);
-    padding: 40px;
+    padding: 40px 56px 40px 40px;
+    /* 편지 쓰기 화면은 .app 컨테이너의 좌우 한계를 일시적으로 넓힘 */
+    width: calc(100% + 80px);
+    margin-left: -40px;
+    margin-right: -40px;
+    max-width: none;
     box-shadow:
       0 0 0 6px var(--paper),
       0 0 0 7px var(--sepia-soft),
       0 20px 50px -10px rgba(45, 36, 25, 0.3);
     position: relative;
+  }
+  @media (max-width: 720px) {
+    .compose-paper {
+      width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+      padding: 28px 24px;
+    }
   }
   .compose-paper::before {
     content: '';
@@ -1752,6 +1791,19 @@
     outline: none;
     word-wrap: break-word;
     white-space: pre-wrap;
+  }
+  /* 빈 div / 빈 p — 한 줄 높이를 차지해서 문단 간격이 자연스럽게 생김 */
+  .rich-editor div:empty,
+  .rich-editor p:empty,
+  .lcp-body div:empty,
+  .lcp-body p:empty {
+    min-height: 1em;
+  }
+  .rich-editor div:empty::after,
+  .rich-editor p:empty::after,
+  .lcp-body div:empty::after,
+  .lcp-body p:empty::after {
+    content: '\200B';   /* zero-width space — 줄 높이 강제 */
   }
   .rich-editor:empty::before {
     content: attr(data-placeholder);
@@ -3883,4 +3935,5 @@
   filter: drop-shadow(0 6px 12px rgba(139, 30, 30, 0.5));
   transform: scale(0.97);
 }
+
 
