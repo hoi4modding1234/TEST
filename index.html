@@ -157,61 +157,79 @@
 
   <!-- ─── MAILBOX PANEL ─── -->
   <section class="panel active" id="panel-mailbox">
-    <div class="mailbox-hero">
-      <div class="mailbox-svg-wrap" id="mailbox-svg-wrap" title="우편함 열기">
-        <svg viewBox="0 0 240 280" xmlns="http://www.w3.org/2000/svg">
-          <!-- post -->
-          <rect x="110" y="180" width="20" height="100" fill="#5a3820"/>
-          <rect x="100" y="270" width="40" height="10" fill="#3d2613"/>
-          <!-- mailbox body -->
-          <path d="M 30 80 Q 30 30, 120 30 Q 210 30, 210 80 L 210 180 L 30 180 Z"
-            fill="url(#mbGrad)" stroke="#5a3820" stroke-width="2"/>
-          <!-- door rim -->
-          <rect x="42" y="62" width="156" height="106" fill="none" stroke="#5a3820" stroke-width="1.5" opacity="0.5"/>
-          <!-- letters peeking inside (visible when door opens, hidden when no mail) -->
-          <g class="mb-letters" id="mb-letters">
-            <rect x="50" y="92" width="120" height="58" fill="#f3e8d0" stroke="#8a5a3a" stroke-width="0.8" transform="rotate(-3 110 121)"/>
-            <rect x="60" y="100" width="120" height="58" fill="#ead9b6" stroke="#8a5a3a" stroke-width="0.8" transform="rotate(2 120 129)"/>
-          </g>
-          <!-- door -->
-          <g class="mb-door">
+    <!-- ════════ 1차: 풍경 모드 ════════ -->
+    <div class="scenery-stage" id="scenery-stage">
+      <div class="scenery-overlay">
+        <div class="greeting" id="scenery-greeting">우편함 <em>Letterbox</em></div>
+        <div class="time-line" id="scenery-time"></div>
+      </div>
+      <button class="scenery-sound-btn muted" id="scenery-sound-btn" type="button" title="환경음 켜기/끄기">♪</button>
+      <div class="scenery-hint" id="scenery-hint">우편함을 클릭해보세요</div>
+      <div class="season-particles" id="season-particles"></div>
+      <!-- 풍경 SVG 는 scenery.js가 그려넣음 -->
+      <div id="scenery-svg-wrap"></div>
+      <div class="scenery-light-overlay" id="scenery-light-overlay"></div>
+    </div>
+
+    <!-- ════════ 2차: 우편함 상세 모드 ════════ -->
+    <div id="mailbox-detail-mode">
+      <button class="back-to-scenery" id="back-to-scenery" type="button">풍경으로 돌아가기</button>
+      <div class="mailbox-hero">
+        <div class="mailbox-svg-wrap" id="mailbox-svg-wrap" title="우편함 열기">
+          <svg viewBox="0 0 240 280" xmlns="http://www.w3.org/2000/svg">
+            <!-- post -->
+            <rect x="110" y="180" width="20" height="100" fill="#5a3820"/>
+            <rect x="100" y="270" width="40" height="10" fill="#3d2613"/>
+            <!-- mailbox body -->
             <path d="M 30 80 Q 30 30, 120 30 Q 210 30, 210 80 L 210 180 L 30 180 Z"
               fill="url(#mbGrad)" stroke="#5a3820" stroke-width="2"/>
-            <rect x="42" y="62" width="156" height="106" fill="none" stroke="#3d2613" stroke-width="1.5"/>
-            <text x="120" y="125" text-anchor="middle" font-family="Cormorant Garamond, serif" font-style="italic" font-size="22" fill="#f3e8d0">Mail</text>
-            <circle cx="190" cy="120" r="4" fill="#c9a961"/>
-          </g>
-          <!-- flag -->
-          <g class="mb-flag" id="mb-flag" transform="translate(210 80)">
-            <rect x="0" y="0" width="3" height="50" fill="#3d2613"/>
-            <path d="M 3 0 L 30 8 L 3 16 Z" fill="#8b1e1e"/>
-          </g>
-          <defs>
-            <linearGradient id="mbGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#3a4660"/>
-              <stop offset="1" stop-color="#1f2a44"/>
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-      <div class="mailbox-info">
-        <h2 id="mb-greeting">우편함 <em>Letterbox</em></h2>
-        <p class="desc" id="mb-desc">우편함을 클릭해 새 편지를 확인해보세요. 멀리서 온 편지일수록 우표의 거리가 큽니다.</p>
-        <div class="mailbox-stats">
-          <div class="stat">
-            <div class="num" id="stat-arrived">0</div>
-            <div class="lbl">도착한 편지</div>
-          </div>
-          <div class="stat">
-            <div class="num" id="stat-transit">0</div>
-            <div class="lbl">배송 중</div>
+            <!-- door rim -->
+            <rect x="42" y="62" width="156" height="106" fill="none" stroke="#5a3820" stroke-width="1.5" opacity="0.5"/>
+            <!-- letters peeking inside (visible when door opens, hidden when no mail) -->
+            <g class="mb-letters" id="mb-letters">
+              <rect x="50" y="92" width="120" height="58" fill="#f3e8d0" stroke="#8a5a3a" stroke-width="0.8" transform="rotate(-3 110 121)"/>
+              <rect x="60" y="100" width="120" height="58" fill="#ead9b6" stroke="#8a5a3a" stroke-width="0.8" transform="rotate(2 120 129)"/>
+            </g>
+            <!-- door -->
+            <g class="mb-door">
+              <path d="M 30 80 Q 30 30, 120 30 Q 210 30, 210 80 L 210 180 L 30 180 Z"
+                fill="url(#mbGrad)" stroke="#5a3820" stroke-width="2"/>
+              <rect x="42" y="62" width="156" height="106" fill="none" stroke="#3d2613" stroke-width="1.5"/>
+              <text x="120" y="125" text-anchor="middle" font-family="Cormorant Garamond, serif" font-style="italic" font-size="22" fill="#f3e8d0">Mail</text>
+              <circle cx="190" cy="120" r="4" fill="#c9a961"/>
+            </g>
+            <!-- flag -->
+            <g class="mb-flag" id="mb-flag" transform="translate(210 80)">
+              <rect x="0" y="0" width="3" height="50" fill="#3d2613"/>
+              <path d="M 3 0 L 30 8 L 3 16 Z" fill="#8b1e1e"/>
+            </g>
+            <defs>
+              <linearGradient id="mbGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#3a4660"/>
+                <stop offset="1" stop-color="#1f2a44"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="mailbox-info">
+          <h2 id="mb-greeting">우편함 <em>Letterbox</em></h2>
+          <p class="desc" id="mb-desc">우편함을 클릭해 새 편지를 확인해보세요. 멀리서 온 편지일수록 우표의 거리가 큽니다.</p>
+          <div class="mailbox-stats">
+            <div class="stat">
+              <div class="num" id="stat-arrived">0</div>
+              <div class="lbl">도착한 편지</div>
+            </div>
+            <div class="stat">
+              <div class="num" id="stat-transit">0</div>
+              <div class="lbl">배송 중</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="section-title">도착한 편지 <em>Arrived</em></div>
-    <div class="letter-grid" id="arrived-grid"></div>
+      <div class="section-title">도착한 편지 <em>Arrived</em></div>
+      <div class="letter-grid" id="arrived-grid"></div>
+    </div>
   </section>
 
   <!-- ─── COMPOSE PANEL ─── -->
@@ -682,6 +700,7 @@
 <script src="letters.js"></script>
 <script src="friends.js"></script>
 <script src="pins.js"></script>
+<script src="scenery.js"></script>
 <script src="main.js"></script>
 </body>
 </html>
