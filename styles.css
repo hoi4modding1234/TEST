@@ -71,7 +71,11 @@
     color: var(--ink);
     background: var(--paper);
     overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
   body {
     background-color: var(--paper);
@@ -971,7 +975,11 @@
     max-width: 640px;
     max-height: 90vh;
     overflow-y: auto;
+    /* 스크롤바 숨김 — 명시적 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .letter-stage::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
   /* Sealed envelope, larger version, with tear animation */
   .stage-envelope {
@@ -1559,7 +1567,10 @@
     background: rgba(45, 36, 25, 0.55);
     backdrop-filter: blur(4px);
     overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .profile-modal::-webkit-scrollbar { display: none; width: 0; height: 0; }
   .profile-modal.show { display: flex; animation: fadeIn 0.3s; }
   .profile-card {
     background: var(--paper);
@@ -1791,19 +1802,6 @@
     outline: none;
     word-wrap: break-word;
     white-space: pre-wrap;
-  }
-  /* 빈 div / 빈 p — 한 줄 높이를 차지해서 문단 간격이 자연스럽게 생김 */
-  .rich-editor div:empty,
-  .rich-editor p:empty,
-  .lcp-body div:empty,
-  .lcp-body p:empty {
-    min-height: 1em;
-  }
-  .rich-editor div:empty::after,
-  .rich-editor p:empty::after,
-  .lcp-body div:empty::after,
-  .lcp-body p:empty::after {
-    content: '\200B';   /* zero-width space — 줄 높이 강제 */
   }
   .rich-editor:empty::before {
     content: attr(data-placeholder);
