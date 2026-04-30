@@ -19,9 +19,6 @@ document.querySelectorAll('.tab').forEach(t => {
     } else if (t.dataset.tab === 'trash') {
       await loadTrash();
       renderTrashPanel();
-    } else if (t.dataset.tab === 'mailbox') {
-      // 우편함 탭으로 돌아왔을 때 — 그날 처음이면 풍경, 아니면 상세 그대로
-      if (typeof syncSceneryFlag === 'function') syncSceneryFlag();
     } else if (t.dataset.tab === 'map') {
       // 지도 lazy 초기화
       if (typeof initMap === 'function') {
@@ -77,9 +74,6 @@ async function launchApp() {
   // 백그라운드 정리 + 도전과제
   runMaintenance();
   checkAchievementsBackground();
-
-  // 풍경 초기화 (우편함 탭이 첫 화면이라 즉시)
-  if (typeof initScenery === 'function') initScenery();
 }
 
 function startAutoRefresh() {

@@ -145,7 +145,6 @@ function renderAll() {
 
   renderEnvelopes('arrived-grid', State.letters);
   renderSent();
-  if (typeof syncSceneryFlag === 'function') syncSceneryFlag();
 }
 
 function renderEnvelopes(elId, letters) {
